@@ -17,6 +17,15 @@ Setup Hyprland from TTY:
 This makes sure the Hyprland desktop pieces are installed, `hyprland.lua` is the
 config path, and the needed services are enabled.
 
+Hyprland 0.55 and newer load:
+
+```text
+~/.config/hypr/hyprland.lua
+```
+
+by default. The setup script links this repo's `hyprland.lua` into that path;
+there is no separate pointer file to maintain.
+
 `setup-arch.sh` installs pacman packages from:
 
 - `packages/arch-pacman.txt`

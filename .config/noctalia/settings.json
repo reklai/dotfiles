@@ -87,7 +87,7 @@
                     "iconPosition": "left",
                     "id": "CustomButton",
                     "ipcIdentifier": "xremap",
-                    "leftClickExec": "/home/reklai/.config/hypr/bin/noctalia-xremap-toggle toggle;\n  qs -c noctalia-shell ipc call cb refresh xremap",
+                    "leftClickExec": "\"$HOME/.config/hypr/bin/noctalia-xremap-toggle\" toggle;\n  qs -c noctalia-shell ipc call cb refresh xremap",
                     "leftClickUpdateText": true,
                     "maxTextLength": {
                         "horizontal": 10,
@@ -102,7 +102,7 @@
                     "showIcon": true,
                     "showTextTooltip": true,
                     "textCollapse": "",
-                    "textCommand": "/home/reklai/.config/hypr/bin/noctalia-xremap-toggle json",
+                    "textCommand": "\"$HOME/.config/hypr/bin/noctalia-xremap-toggle\" json",
                     "textIntervalMs": 1000,
                     "textStream": false,
                     "wheelDownExec": "",
@@ -356,7 +356,7 @@
         "animationDisabled": true,
         "animationSpeed": 1,
         "autoStartAuth": false,
-        "avatarImage": "/home/reklai/Pictures/Wallpapers/anime-girl-doing-painting-magical-4k-zq-1920x1080.jpg",
+        "avatarImage": "~/Pictures/Wallpapers/anime-girl-doing-painting-magical-4k-zq-1920x1080.jpg",
         "boxRadiusRatio": 1,
         "clockFormat": "",
         "clockStyle": "custom",
@@ -642,7 +642,7 @@
     },
     "wallpaper": {
         "automationEnabled": false,
-        "directory": "/home/reklai/Pictures/Wallpapers",
+        "directory": "~/Pictures/Wallpapers",
         "enableMultiMonitorDirectories": false,
         "enabled": true,
         "favorites": [
