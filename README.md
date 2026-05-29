@@ -63,7 +63,7 @@ nodejs npm pyright python python-pip python-pynvim ruff rustup stylua zig
 AUR packages installed:
 
 ```text
-nerd-fonts-sf-mono noctalia-qs noctalia-shell prettierd vesktop xremap-hypr-bin
+nerd-fonts-sf-mono noctalia-qs noctalia-shell prettierd xremap-hypr-bin
 zen-browser-bin
 ```
 
