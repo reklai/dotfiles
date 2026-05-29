@@ -32,10 +32,17 @@ notify() {
 	fi
 }
 
+dispatch_output_failed() {
+	local output="$1"
+
+	[[ "$output" == error:* || "$output" == *$'\nerror:'* ]]
+}
+
 run_dispatch() {
 	local dispatcher="$1"
+	local output
 
-	if hyprctl dispatch "$dispatcher" >/dev/null 2>&1; then
+	if output="$(hyprctl dispatch "$dispatcher" 2>&1)" && ! dispatch_output_failed "$output"; then
 		return 0
 	fi
 
@@ -79,8 +86,8 @@ state_file() {
 }
 
 active_workspace_id() {
-	hyprctl activewindow -j 2>/dev/null |
-		jq -r '.workspace.id // empty' 2>/dev/null
+	hyprctl activeworkspace -j 2>/dev/null |
+		jq -r '.id // empty' 2>/dev/null
 }
 
 active_window_address() {
@@ -211,6 +218,7 @@ container_snapshot() {
 		return 0
 	fi
 
+	forget_stale_container_anchor
 	anchor_address="$(stored_container_anchor_address || true)"
 
 	if ! {
@@ -331,6 +339,30 @@ group_addresses_for_window() {
 		' 2>/dev/null
 }
 
+container_window_addresses() {
+	local anchor_address="$1"
+	local addresses=()
+	local address
+	local printed=0
+
+	mapfile -t addresses < <(group_addresses_for_window "$anchor_address")
+
+	if (( ${#addresses[@]} == 0 )); then
+		addresses=("$anchor_address")
+	fi
+
+	for address in "${addresses[@]}"; do
+		if [[ "$address" =~ ^0x[0-9a-fA-F]+$ ]] && client_exists "$address"; then
+			printf '%s\n' "$address"
+			printed=1
+		fi
+	done
+
+	if (( printed == 0 )) && client_exists "$anchor_address"; then
+		printf '%s\n' "$anchor_address"
+	fi
+}
+
 remembered_container_active_address() {
 	local anchor_address
 
@@ -442,28 +474,41 @@ move_into_container() {
 	run_dispatch "hl.dsp.window.move({ into_or_create_group = \"${direction}\" })"
 }
 
-bring_container_to_active_workspace() {
-	local active_address
-	local container_address
-	local container_workspace
-	local target_workspace
+move_window_to_workspace() {
+	local workspace="$1"
+	local address="$2"
 
-	active_address="$(active_window_address)" || return 1
+	run_dispatch "hl.dsp.window.move({ workspace = ${workspace}, window = \"address:${address}\" })"
+}
+
+bring_container_to_active_workspace() {
+	local container_address
+	local target_workspace
+	local container_addresses=()
+	local address
+	local address_workspace
+
 	container_address="$(container_anchor_address)" || return 1
 	target_workspace="$(active_workspace_id)" || return 1
-	container_workspace="$(client_workspace_id "$container_address" || true)"
 
-	[[ "$active_address" =~ ^0x[0-9a-fA-F]+$ ]] || return 1
 	[[ "$container_address" =~ ^0x[0-9a-fA-F]+$ ]] || return 1
 	[[ "$target_workspace" =~ ^-?[0-9]+$ ]] || return 1
 
-	if [[ "$active_address" == "$container_address" || "$container_workspace" == "$target_workspace" ]]; then
-		return 0
+	mapfile -t container_addresses < <(container_window_addresses "$container_address")
+
+	if (( ${#container_addresses[@]} == 0 )); then
+		return 1
 	fi
 
-	run_dispatch "hl.dsp.focus({ window = \"address:${container_address}\" })" || return 1
-	run_dispatch "hl.dsp.window.move({ workspace = ${target_workspace} })" || return 1
-	run_dispatch "hl.dsp.focus({ window = \"address:${active_address}\" })" || true
+	for address in "${container_addresses[@]}"; do
+		address_workspace="$(client_workspace_id "$address" || true)"
+
+		if [[ "$address_workspace" == "$target_workspace" ]]; then
+			continue
+		fi
+
+		move_window_to_workspace "$target_workspace" "$address" || return 1
+	done
 }
 
 lock_active_container() {
@@ -478,6 +523,10 @@ create_container_from_active_window() {
 add_to_group() {
 	local direction
 	local state=0
+
+	if command -v jq >/dev/null 2>&1; then
+		forget_stale_container_anchor
+	fi
 
 	if active_window_in_container; then
 		return 0
@@ -509,7 +558,6 @@ add_to_group() {
 }
 
 move_container_here() {
-	local active_address
 	local container_address
 	local target_workspace
 
@@ -518,12 +566,12 @@ move_container_here() {
 		return 1
 	fi
 
-	active_address="$(active_window_address || true)"
 	target_workspace="$(active_workspace_id || true)"
+	forget_stale_container_anchor
 	container_address="$(container_anchor_address || true)"
 
-	if [[ ! "$active_address" =~ ^0x[0-9a-fA-F]+$ || ! "$target_workspace" =~ ^-?[0-9]+$ ]]; then
-		notify "Could not inspect the active window."
+	if [[ ! "$target_workspace" =~ ^-?[0-9]+$ ]]; then
+		notify "Could not inspect the active workspace."
 		return 1
 	fi
 
@@ -698,6 +746,8 @@ select_window() {
 		return 1
 	fi
 
+	forget_stale_container_anchor
+
 	if ! client_exists "$address"; then
 		notify "Window is not available."
 		return 1
@@ -730,6 +780,8 @@ close_window() {
 		notify "Could not inspect the Container."
 		return 1
 	fi
+
+	forget_stale_container_anchor
 
 	if [[ -z "$address" ]]; then
 		address="$(close_target_address || true)"
@@ -766,6 +818,8 @@ remove_window() {
 		notify "Could not inspect the active window."
 		return 1
 	fi
+
+	forget_stale_container_anchor
 
 	if [[ -n "$address" ]]; then
 		remove_window_by_address "$address"

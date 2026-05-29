@@ -10,6 +10,7 @@ mock_bin="${tmp_dir}/bin"
 runtime_dir="${tmp_dir}/runtime"
 active_json="${tmp_dir}/active.json"
 active_after_move_json="${tmp_dir}/active-after-move.json"
+active_workspace_json="${tmp_dir}/active-workspace.json"
 clients_json="${tmp_dir}/clients.json"
 dispatch_log="${tmp_dir}/dispatch.log"
 notify_log="${tmp_dir}/notify.log"
@@ -27,24 +28,53 @@ case "${1:-}" in
 	activewindow)
 		cat "$HYPRGROUP_TEST_ACTIVE_JSON"
 		;;
+	activeworkspace)
+		cat "$HYPRGROUP_TEST_ACTIVE_WORKSPACE_JSON"
+		;;
 	clients)
 		cat "$HYPRGROUP_TEST_CLIENTS_JSON"
 		;;
 	dispatch)
-		printf '%s\n' "${2:-}" >>"$HYPRGROUP_TEST_DISPATCH_LOG"
-		if [[ "${2:-}" =~ address:(0x[0-9a-fA-F]+) ]]; then
+		dispatcher="${2:-}"
+		args="${3:-}"
+
+		if [[ -n "$args" ]]; then
+			command="${dispatcher} ${args}"
+		else
+			command="$dispatcher"
+		fi
+
+		printf '%s\n' "$command" >>"$HYPRGROUP_TEST_DISPATCH_LOG"
+
+		if [[ -n "${HYPRGROUP_TEST_FAIL_DISPATCH:-}" && "$command" == *"$HYPRGROUP_TEST_FAIL_DISPATCH"* ]]; then
+			exit 1
+		fi
+
+		if [[ -n "${HYPRGROUP_TEST_ERROR_DISPATCH:-}" && "$command" == *"$HYPRGROUP_TEST_ERROR_DISPATCH"* ]]; then
+			printf 'error: fake dispatcher parse error\n'
+			exit 0
+		fi
+
+		if [[ "$command" == hl.dsp.window.move* && "$command" =~ workspace[[:space:]]*=[[:space:]]*(-?[0-9]+) ]]; then
+			workspace="${BASH_REMATCH[1]}"
+			if [[ "$command" =~ window[[:space:]]*=[[:space:]]*\"address:(0x[0-9a-fA-F]+)\" ]]; then
+				address="${BASH_REMATCH[1]}"
+				tmp="${HYPRGROUP_TEST_CLIENTS_JSON}.$$"
+				jq --arg address "$address" --argjson workspace "$workspace" 'map(if .address == $address then (.workspace.id = $workspace) else . end)' "$HYPRGROUP_TEST_CLIENTS_JSON" >"$tmp"
+				mv "$tmp" "$HYPRGROUP_TEST_CLIENTS_JSON"
+			else
+				address="$(jq -r '.address' "$HYPRGROUP_TEST_ACTIVE_JSON")"
+				tmp="${HYPRGROUP_TEST_CLIENTS_JSON}.$$"
+				jq --arg address "$address" --argjson workspace "$workspace" 'map(if .address == $address then (.workspace.id = $workspace) else . end)' "$HYPRGROUP_TEST_CLIENTS_JSON" >"$tmp"
+				mv "$tmp" "$HYPRGROUP_TEST_CLIENTS_JSON"
+				tmp="${HYPRGROUP_TEST_ACTIVE_JSON}.$$"
+				jq --argjson workspace "$workspace" '.workspace.id = $workspace' "$HYPRGROUP_TEST_ACTIVE_JSON" >"$tmp"
+				mv "$tmp" "$HYPRGROUP_TEST_ACTIVE_JSON"
+			fi
+		elif [[ "$command" =~ address:(0x[0-9a-fA-F]+) ]]; then
 			address="${BASH_REMATCH[1]}"
 			jq --arg address "$address" '.[] | select(.address == $address)' "$HYPRGROUP_TEST_CLIENTS_JSON" >"$HYPRGROUP_TEST_ACTIVE_JSON"
-		elif [[ "${2:-}" =~ workspace[[:space:]]*=[[:space:]]*(-?[0-9]+) ]]; then
-			workspace="${BASH_REMATCH[1]}"
-			address="$(jq -r '.address' "$HYPRGROUP_TEST_ACTIVE_JSON")"
-			tmp="${HYPRGROUP_TEST_CLIENTS_JSON}.$$"
-			jq --arg address "$address" --argjson workspace "$workspace" 'map(if .address == $address then (.workspace.id = $workspace) else . end)' "$HYPRGROUP_TEST_CLIENTS_JSON" >"$tmp"
-			mv "$tmp" "$HYPRGROUP_TEST_CLIENTS_JSON"
-			tmp="${HYPRGROUP_TEST_ACTIVE_JSON}.$$"
-			jq --argjson workspace "$workspace" '.workspace.id = $workspace' "$HYPRGROUP_TEST_ACTIVE_JSON" >"$tmp"
-			mv "$tmp" "$HYPRGROUP_TEST_ACTIVE_JSON"
-		elif [[ "${2:-}" == *"into_or_create_group"* && -n "${HYPRGROUP_TEST_ACTIVE_AFTER_MOVE_JSON:-}" && -f "$HYPRGROUP_TEST_ACTIVE_AFTER_MOVE_JSON" ]]; then
+		elif [[ "$command" == *"into_or_create_group"* && -n "${HYPRGROUP_TEST_ACTIVE_AFTER_MOVE_JSON:-}" && -f "$HYPRGROUP_TEST_ACTIVE_AFTER_MOVE_JSON" ]]; then
 			cat "$HYPRGROUP_TEST_ACTIVE_AFTER_MOVE_JSON" >"$HYPRGROUP_TEST_ACTIVE_JSON"
 		fi
 		;;
@@ -68,8 +98,11 @@ chmod +x "${mock_bin}/hyprctl" "${mock_bin}/notify-send"
 
 export HYPRGROUP_TEST_ACTIVE_JSON="$active_json"
 export HYPRGROUP_TEST_ACTIVE_AFTER_MOVE_JSON="$active_after_move_json"
+export HYPRGROUP_TEST_ACTIVE_WORKSPACE_JSON="$active_workspace_json"
 export HYPRGROUP_TEST_CLIENTS_JSON="$clients_json"
 export HYPRGROUP_TEST_DISPATCH_LOG="$dispatch_log"
+export HYPRGROUP_TEST_ERROR_DISPATCH=""
+export HYPRGROUP_TEST_FAIL_DISPATCH=""
 export HYPRGROUP_TEST_NOTIFY_LOG="$notify_log"
 export PATH="${mock_bin}:${PATH}"
 export XDG_RUNTIME_DIR="$runtime_dir"
@@ -79,11 +112,25 @@ state_file="${runtime_dir}/hyprgroup-containers.tsv"
 reset_logs() {
 	: >"$dispatch_log"
 	: >"$notify_log"
+	HYPRGROUP_TEST_ERROR_DISPATCH=""
+	HYPRGROUP_TEST_FAIL_DISPATCH=""
 	rm -f "$active_after_move_json"
 }
 
 write_active() {
 	printf '%s\n' "$1" >"$active_json"
+
+	if jq -e '.workspace.id | numbers' "$active_json" >/dev/null 2>&1; then
+		jq -c '{id: .workspace.id, name: ((.workspace.name // (.workspace.id | tostring)) | tostring)}' "$active_json" >"$active_workspace_json"
+	else
+		printf '{}\n' >"$active_workspace_json"
+	fi
+}
+
+write_active_workspace() {
+	local workspace="$1"
+
+	printf '{"id":%s,"name":"%s"}\n' "$workspace" "$workspace" >"$active_workspace_json"
 }
 
 assert_file_equals() {
@@ -270,7 +317,7 @@ test_add_brings_global_container_to_active_workspace() {
 
 	bash "$subject" add
 
-	assert_file_equals "$dispatch_log" $'hl.dsp.window.fullscreen({ action = "unset" })\nhl.dsp.window.float({ action = "off" })\nhl.dsp.focus({ window = "address:0x111" })\nhl.dsp.window.move({ workspace = 2 })\nhl.dsp.focus({ window = "address:0x222" })\nhl.dsp.window.move({ into_or_create_group = "l" })\nhl.dsp.group.lock_active({ action = "lock" })'
+	assert_file_equals "$dispatch_log" $'hl.dsp.window.fullscreen({ action = "unset" })\nhl.dsp.window.float({ action = "off" })\nhl.dsp.window.move({ workspace = 2, window = "address:0x111" })\nhl.dsp.window.move({ into_or_create_group = "l" })\nhl.dsp.group.lock_active({ action = "lock" })'
 	assert_file_equals "$state_file" $'anchor\t0x222'
 	assert_no_notifications
 }
@@ -287,7 +334,24 @@ test_move_container_here_moves_remembered_container_to_active_workspace() {
 
 	bash "$subject" move-here
 
-	assert_file_equals "$dispatch_log" $'hl.dsp.focus({ window = "address:0x111" })\nhl.dsp.window.move({ workspace = 2 })\nhl.dsp.focus({ window = "address:0x999" })'
+	assert_file_equals "$dispatch_log" $'hl.dsp.window.move({ workspace = 2, window = "address:0x111" })\nhl.dsp.window.move({ workspace = 2, window = "address:0x222" })'
+	assert_file_equals "$state_file" $'anchor\t0x111'
+	assert_no_notifications
+}
+
+test_move_container_here_works_without_active_window() {
+	reset_logs
+	write_active '{}'
+	write_active_workspace 3
+	printf '%s\n' \
+		'[{"address":"0x111","workspace":{"id":1},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x222","workspace":{"id":1},"grouped":["0x111","0x222"]}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" move-here
+
+	assert_file_equals "$dispatch_log" $'hl.dsp.window.move({ workspace = 3, window = "address:0x111" })\nhl.dsp.window.move({ workspace = 3, window = "address:0x222" })'
 	assert_file_equals "$state_file" $'anchor\t0x111'
 	assert_no_notifications
 }
@@ -323,6 +387,64 @@ test_move_container_here_rejects_without_remembered_container() {
 	assert_file_equals "$dispatch_log" ""
 	assert_file_equals "$state_file" ""
 	assert_file_equals "$notify_log" "HyprGroup No Container to move."
+}
+
+test_move_container_here_cleans_stale_anchor() {
+	reset_logs
+	write_active '{"address":"0x999","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '[{"address":"0x999","workspace":{"id":1},"grouped":[]}]\n' >"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	if bash "$subject" move-here; then
+		printf 'Expected move-here with stale Container to fail.\n' >&2
+		return 1
+	fi
+
+	assert_file_equals "$dispatch_log" ""
+	assert_file_equals "$state_file" ""
+	assert_file_equals "$notify_log" "HyprGroup No Container to move."
+}
+
+test_move_container_here_reports_failure_when_member_move_fails() {
+	reset_logs
+	write_active '{"address":"0x999","monitor":1,"workspace":{"id":2},"grouped":[]}'
+	printf '%s\n' \
+		'[{"address":"0x111","workspace":{"id":1},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x222","workspace":{"id":1},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x999","workspace":{"id":2},"grouped":[]}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+	HYPRGROUP_TEST_FAIL_DISPATCH='hl.dsp.window.move({ workspace = 2, window = "address:0x111" })'
+
+	if bash "$subject" move-here; then
+		printf 'Expected move-here dispatch failure to fail.\n' >&2
+		return 1
+	fi
+
+	assert_file_equals "$dispatch_log" 'hl.dsp.window.move({ workspace = 2, window = "address:0x111" })'
+	assert_file_equals "$state_file" $'anchor\t0x111'
+	assert_file_equals "$notify_log" $'HyprGroup Hyprland did not accept the container command.\nHyprGroup Could not move the Container.'
+}
+
+test_move_container_here_reports_failure_when_dispatcher_prints_error() {
+	reset_logs
+	write_active '{"address":"0x999","monitor":1,"workspace":{"id":2},"grouped":[]}'
+	printf '%s\n' \
+		'[{"address":"0x111","workspace":{"id":1},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x222","workspace":{"id":1},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x999","workspace":{"id":2},"grouped":[]}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+	HYPRGROUP_TEST_ERROR_DISPATCH='hl.dsp.window.move({ workspace = 2, window = "address:0x111" })'
+
+	if bash "$subject" move-here; then
+		printf 'Expected move-here dispatcher error output to fail.\n' >&2
+		return 1
+	fi
+
+	assert_file_equals "$dispatch_log" 'hl.dsp.window.move({ workspace = 2, window = "address:0x111" })'
+	assert_file_equals "$state_file" $'anchor\t0x111'
+	assert_file_equals "$notify_log" $'HyprGroup Hyprland did not accept the container command.\nHyprGroup Could not move the Container.'
 }
 
 test_reorder_moves_group_window_forward_to_index() {
@@ -562,8 +684,12 @@ test_add_remembered_one_window_container_is_noop
 test_add_new_container_remembers_global_anchor
 test_add_brings_global_container_to_active_workspace
 test_move_container_here_moves_remembered_container_to_active_workspace
+test_move_container_here_works_without_active_window
 test_move_container_here_is_noop_when_container_is_already_here
 test_move_container_here_rejects_without_remembered_container
+test_move_container_here_cleans_stale_anchor
+test_move_container_here_reports_failure_when_member_move_fails
+test_move_container_here_reports_failure_when_dispatcher_prints_error
 test_reorder_moves_group_window_forward_to_index
 test_reorder_moves_group_window_backward_to_index
 test_reorder_single_window_container_is_noop

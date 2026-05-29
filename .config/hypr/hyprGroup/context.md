@@ -28,11 +28,12 @@ Defaults are configured in `lua/hyprgroup/config.lua`; the main Hyprland config 
 ## Menu Actions
 
 - `Add to Container`: add the active window to the Container only when it is not already in one.
-- `Move Container Here`: move the remembered Container to the current active workspace without adding the active Window to it.
+- `Move Container Here`: move the remembered Container to the current active workspace without adding the active Window to it; it can run even when the current workspace has no active Window.
 - `Remove from Container`: remove the selected Container Window from its Container, or forget a selected one-window Container.
 - `Close Window Inside Container`: close the selected Container Window with a normal close request. This destroys the Window; reopening happens through the app/launcher, and the reopened Window starts outside the Container until added again.
+- Move Container Here, Remove from Container, and Close Window Inside Container close the menu after dispatching.
 - `Prev` and `Next`: header arrow controls for cycling focus through windows in the active group, or through the remembered visible Container when focus is outside a group. They must not reorder the visual Window List; the selected row follows the cycled active member.
-- Action availability follows current context: Add is disabled when the active Window is already in a Container; Move Container Here is disabled when there is no remembered Container or the active Window is already in that Container; Remove and Close are disabled until a Container Window is selected.
+- Action availability follows current context: Add is disabled when there is no active Window or when the active Window is already in the shown Container; Move Container Here is disabled when there is no remembered Container or the active Window is already in that Container; Prev and Next are disabled until the shown Container has at least two Windows; Remove and Close are disabled until a Container Window is selected.
 
 ## Window List
 
@@ -59,7 +60,7 @@ Defaults are configured in `lua/hyprgroup/config.lua`; the main Hyprland config 
 - `bin/hyprgroup menu`: toggles the Quickshell menu and passes `hyprctl cursorpos` into the IPC call.
 - `bin/hyprgroup daemon`: starts the persistent Quickshell process if it is not already running.
 - `bin/hyprgroup add`: checks the active window first. If the window is already in the Container, it does nothing. Otherwise it unsets fullscreen/floating state, brings the remembered Container anchor to the active workspace when needed, moves the active window into the Container when possible, and only creates a new Container when none exists. A runtime state file stores the single Container anchor address so the Container follows the real window/group identity instead of being tied to a workspace. After creating or moving into a group, it locks the active group so future windows tile beside the Container instead of auto-entering it. HyprGroup sets `binds.ignore_group_lock = true` so scripted Add can still enter the locked Container intentionally.
-- `bin/hyprgroup move-here`: moves the remembered Container anchor to the active workspace, preserving the currently focused Window when the Container had to be focused temporarily.
+- `bin/hyprgroup move-here`: clears a stale remembered anchor before acting, reads the target from `hyprctl activeworkspace -j`, resolves every live Window in the remembered Container, and moves each off-workspace member to the active workspace with the Lua dispatcher form `hl.dsp.window.move({ workspace = WORKSPACE, window = "address:ADDRESS" })`. If every Container Window is already on the active workspace, it does nothing.
 - `bin/hyprgroup reorder ADDRESS INDEX`: moves the grouped Window at `ADDRESS` forward or backward until it reaches the zero-based Container `INDEX`.
 - `bin/hyprgroup select ADDRESS`: validates that `ADDRESS` belongs to the current Container, focuses it to update the native group active member, then restores the original focus when the original focus was outside that Container.
 - `bin/hyprgroup close [ADDRESS]`: focuses the selected Container window when needed, repairs the remembered anchor before closing if the selected Window is the anchor, then dispatches `hl.dsp.window.close({})`. If no address is provided, it closes the active grouped Window or the most recently focused Window in the remembered Container.

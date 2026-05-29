@@ -13,6 +13,7 @@ ShellRoot {
 	property bool pointerKnown: false
 	property int pointerX: 0
 	property int pointerY: 0
+	property string activeHyprlandAddress: ""
 	property string snapshotAddress: ""
 	property string snapshotClass: ""
 	property string snapshotSource: "none"
@@ -91,6 +92,10 @@ ShellRoot {
 			command.push(argument);
 		}
 
+		if (!keepOpen) {
+			closeMenu();
+		}
+
 		Quickshell.execDetached(command);
 
 		if (keepOpen) {
@@ -99,8 +104,6 @@ ShellRoot {
 			if (action === "close") {
 				closeRefreshSnapshotTimer.restart();
 			}
-		} else {
-			closeMenu();
 		}
 	}
 
@@ -112,6 +115,22 @@ ShellRoot {
 	function runCycle(action) {
 		selectActiveAfterRefresh = true;
 		run(action, "", true);
+	}
+
+	function activeWindowInShownContainer() {
+		return snapshotHasContainer && activeHyprlandAddress.length > 0 && hasAddress(snapshotGrouped, activeHyprlandAddress);
+	}
+
+	function canAddToContainer() {
+		return activeHyprlandAddress.length > 0 && !activeWindowInShownContainer();
+	}
+
+	function canMoveContainerHere() {
+		return snapshotHasContainer && !activeWindowInShownContainer();
+	}
+
+	function canCycleContainer() {
+		return snapshotHasContainer && snapshotGrouped.length > 1;
 	}
 
 	function setPointer(x, y) {
@@ -212,6 +231,8 @@ ShellRoot {
 		const active = Hyprland.activeToplevel;
 		const ipc = active && active.lastIpcObject ? active.lastIpcObject : null;
 		const grouped = actualGroupedAddresses(ipc && ipc.grouped ? ipc.grouped : [], active ? active.address : "");
+
+		activeHyprlandAddress = active ? active.address : "";
 
 		if (!active || grouped.length === 0) {
 			clearSnapshot();
@@ -732,7 +753,8 @@ ShellRoot {
 								id: prevButton
 								width: 30
 								height: 30
-								color: prevMouse.containsMouse ? "#242b35" : "#141922"
+								opacity: root.canCycleContainer() ? 1 : 0.48
+								color: root.canCycleContainer() && prevMouse.containsMouse ? "#242b35" : "#141922"
 								border.color: "#3a414b"
 								border.width: 1
 								radius: 6
@@ -748,8 +770,9 @@ ShellRoot {
 								MouseArea {
 									id: prevMouse
 									anchors.fill: parent
-									hoverEnabled: true
-									cursorShape: Qt.PointingHandCursor
+									enabled: root.canCycleContainer()
+									hoverEnabled: root.canCycleContainer()
+									cursorShape: root.canCycleContainer() ? Qt.PointingHandCursor : Qt.ArrowCursor
 									onClicked: root.runCycle("prev")
 								}
 							}
@@ -758,7 +781,8 @@ ShellRoot {
 								id: nextButton
 								width: 30
 								height: 30
-								color: nextMouse.containsMouse ? "#242b35" : "#141922"
+								opacity: root.canCycleContainer() ? 1 : 0.48
+								color: root.canCycleContainer() && nextMouse.containsMouse ? "#242b35" : "#141922"
 								border.color: "#3a414b"
 								border.width: 1
 								radius: 6
@@ -774,8 +798,9 @@ ShellRoot {
 								MouseArea {
 									id: nextMouse
 									anchors.fill: parent
-									hoverEnabled: true
-									cursorShape: Qt.PointingHandCursor
+									enabled: root.canCycleContainer()
+									hoverEnabled: root.canCycleContainer()
+									cursorShape: root.canCycleContainer() ? Qt.PointingHandCursor : Qt.ArrowCursor
 									onClicked: root.runCycle("next")
 								}
 							}
@@ -834,15 +859,15 @@ ShellRoot {
 							ActionButton {
 								width: parent.width
 								label: "Add to Container"
-								actionEnabled: root.snapshotSource !== "active"
+								actionEnabled: root.canAddToContainer()
 								onTriggered: root.run("add")
 							}
 
 							ActionButton {
 								width: parent.width
 								label: "Move Container Here"
-								actionEnabled: root.snapshotHasContainer && root.snapshotSource !== "active"
-								onTriggered: root.run("move-here", "", true)
+								actionEnabled: root.canMoveContainerHere()
+								onTriggered: root.run("move-here")
 							}
 
 							ActionButton {
@@ -850,7 +875,7 @@ ShellRoot {
 								label: "Remove from Container"
 								danger: true
 								actionEnabled: root.hasSelectedWindow()
-								onTriggered: root.run("remove", root.selectedAddress, true)
+								onTriggered: root.run("remove", root.selectedAddress)
 							}
 
 							ActionButton {
@@ -858,7 +883,7 @@ ShellRoot {
 								label: "Close Window Inside Container"
 								danger: true
 								actionEnabled: root.hasSelectedWindow()
-								onTriggered: root.run("close", root.selectedAddress, true)
+								onTriggered: root.run("close", root.selectedAddress)
 							}
 						}
 

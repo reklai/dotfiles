@@ -79,10 +79,11 @@ tests/                         CLI regression tests
 - The Container is tracked by anchor window address, not by workspace
 - Containers are locked after Add so new windows tile beside them instead of auto-entering them
 - Add can still intentionally enter the locked Container
-- Move Container Here, moving the remembered Container to the current active workspace without adding the active window
+- Move Container Here, moving every live Window in the remembered Container to the current active workspace without adding the active window; this also works on an empty workspace
 - Remove from Container, either moving the selected grouped window out or forgetting a one-window Container
 - Close Window Inside Container, closing the selected Container window with a normal close request
-- Previous and next arrows that cycle focus inside the visible Container without reordering the list
+- Move, Remove, and Close actions auto-close the menu after dispatching
+- Previous and next arrows that cycle focus inside the visible Container without reordering the list, disabled when there is nothing to cycle
 - Active window details for the selected grouped window, while Container state feedback only reflects the current active Hyprland window
 - Ghostty-inspired vertical, scrollable tab list under the active-window preview with practical labels: Window title, app class, then `Window N`
 - Single click selects a row and updates the Container's active member without staying focused there when you are outside it
