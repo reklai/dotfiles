@@ -9,8 +9,8 @@ local clipboard_manager = "qs -c noctalia-shell ipc call launcher clipboard"
 local main_mod = "SUPER"
 local home = assert(os.getenv("HOME"), "HOME is not set")
 local screenshot_region = home .. "/.config/hypr/bin/hypr-screenshot-region"
-local hyprGroup = "enable"
-local hyprgroup_path = home .. "/code/personal/hypr/hyprGroup/lua/hyprgroup.lua"
+local hyprCompanion = "enable"
+local hyprcompanion_path = home .. "/code/personal/hypr/hyprCompanion/lua/hyprcompanion.lua"
 
 local function command_succeeds(command)
 	local ok = os.execute(command .. " >/dev/null 2>&1")
@@ -33,12 +33,12 @@ local function nvidia_available()
 		or command_succeeds("nvidia-smi -L")
 end
 
-local function setup_hyprgroup()
-	if hyprGroup ~= "enable" or not path_exists(hyprgroup_path) then
+local function setup_hyprcompanion()
+	if hyprCompanion ~= "enable" or not path_exists(hyprcompanion_path) then
 		return
 	end
 
-	dofile(hyprgroup_path).setup({
+	dofile(hyprcompanion_path).setup({
 		main_mod = main_mod,
 	})
 end
@@ -268,7 +268,7 @@ hl.bind(main_mod .. " + SHIFT + M", hl.dsp.window.kill())
 hl.bind(main_mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 hl.bind(main_mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
-setup_hyprgroup()
+setup_hyprcompanion()
 
 local workspace_keys = { "Q", "W", "E", "R" }
 for workspace, key in ipairs(workspace_keys) do
