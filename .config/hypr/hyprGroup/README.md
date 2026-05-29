@@ -35,12 +35,12 @@ The Container still occupies one regular Hyprland tile. Inside that tile, Hyprla
 +-------------+----------------------------------+
 ```
 
-The menu only describes the Active Container. If focus is outside any group, HyprGroup falls back to the remembered Container anchor, even when that Container is on another workspace. It is not a launcher, workspace switcher, or list of every open window.
+The menu only describes the Active Container. If focus is outside any group, HyprGroup falls back to the remembered Container, even when that Container is on another workspace. It is not a launcher, workspace switcher, or list of every open window.
 
 ## Bindings
 
-- `SUPER + mouse_down`: next window in the active group
-- `SUPER + mouse_up`: previous window in the active group
+- `SUPER + mouse_down`: previous window in the active group
+- `SUPER + mouse_up`: next window in the active group
 - `SUPER + backslash`: next window in the active group
 - `SUPER + SHIFT + backslash`: previous window in the active group
 - `SUPER + G`: toggle the HyprGroup menu instantly through a persistent Quickshell daemon
@@ -49,16 +49,18 @@ The split menu opens near the cursor, stays clamped inside the monitor, uses bla
 
 ## Menu Actions
 
-- Add, moving the focused window into the single remembered Container when possible
+- Add to Container, moving the focused window into the single remembered Container when possible
 - Add first normalizes fullscreen/floating windows back into the tiled layout
 - The Container is tracked by anchor window address, not by workspace
 - Containers are locked after Add so new windows tile beside them instead of auto-entering them
 - Add can still intentionally enter the locked Container
-- Remove, either moving the focused grouped window out or forgetting a one-window Container
-- Previous and next arrows
-- Active window details for the focused grouped window, or the remembered Container anchor when focus is outside any group
-- Ghostty-inspired tab rail inside the Container panel with practical labels: Window title, app class, then `Window N`
-- Drag tabs in the Container Menu to reorder grouped windows
+- Remove from Container, either moving the selected grouped window out or forgetting a one-window Container
+- Close Window Inside Container, closing the selected Container window with a normal close request
+- Previous and next arrows that cycle focus inside the visible Container
+- Active window details for the selected grouped window, while Container state feedback only reflects the current active Hyprland window
+- Ghostty-inspired vertical, scrollable tab list under the active-window preview with practical labels: Window title, app class, then `Window N`
+- Single click selects a row, double click focuses that grouped window, and drag reorders rows
+- Remove and Close target the selected highlighted row
 - If no active or remembered Container exists, the active block says `No Active Window`
 
 ## CLI
@@ -68,6 +70,8 @@ bin/hyprgroup --help
 bin/hyprgroup daemon
 bin/hyprgroup menu
 bin/hyprgroup add
+bin/hyprgroup close
+bin/hyprgroup remove 0x123456
 bin/hyprgroup reorder 0x123456 1
 bin/hyprgroup snapshot
 bin/hyprgroup prev

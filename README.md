@@ -1,3 +1,5 @@
+Personal Config
+
 Setup fresh Arch machine:
 
 ```sh
@@ -6,9 +8,24 @@ cd ~/dotfiles
 ./setup-arch.sh
 ```
 
+Setup Hyprland from TTY:
+
+```sh
+./setup-hyprland.sh
+```
+
+This makes sure the Hyprland desktop pieces are installed, `hyprland.lua` is the
+config path, and the needed services are enabled.
+
 `setup-arch.sh` installs pacman packages from:
 
 - `packages/arch-pacman.txt`
+
+Then it sets Rust:
+
+```sh
+rustup default stable
+```
 
 Then it checks for an AUR helper:
 
@@ -32,9 +49,11 @@ Official packages installed:
 ```text
 base-devel bash-completion git less openssh rsync sudo which wget
 bat eza fd fzf jq ripgrep starship tmux tree tree-sitter-cli
-brightnessctl code dolphin ghostty grim hyprland libnotify obs-studio
-pavucontrol pipewire pipewire-alsa pipewire-pulse playerctl slurp uwsm
-wireplumber wl-clipboard wofi xdg-desktop-portal xdg-desktop-portal-hyprland
+brightnessctl cliphist code discord dolphin ghostty grim hyprland libnotify obs-studio
+pavucontrol pipewire pipewire-alsa pipewire-pulse playerctl networkmanager
+polkit polkit-kde-agent qt5-wayland qt6-wayland sddm slurp uwsm wireplumber
+steam wl-clipboard wofi xorg-xwayland xdg-desktop-portal xdg-desktop-portal-gtk
+xdg-desktop-portal-hyprland xdg-utils
 noto-fonts noto-fonts-cjk noto-fonts-emoji ttf-dejavu
 ttf-jetbrains-mono-nerd ttf-meslo-nerd
 bear clang cmake eslint_d gdb go gopls lldb lua-language-server neovim ninja
@@ -44,8 +63,32 @@ nodejs npm pyright python python-pip python-pynvim ruff rustup stylua zig
 AUR packages installed:
 
 ```text
-nerd-fonts-sf-mono noctalia-qs noctalia-shell prettierd xremap-hypr-bin
+nerd-fonts-sf-mono noctalia-qs noctalia-shell prettierd vesktop xremap-hypr-bin
 zen-browser-bin
+```
+
+Hyprland script installs:
+
+```text
+hyprland uwsm xorg-xwayland xdg-desktop-portal xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk xdg-utils polkit polkit-kde-agent sddm networkmanager qt6-wayland
+qt5-wayland pipewire pipewire-alsa pipewire-pulse wireplumber ghostty wofi dolphin
+cliphist code discord jq grim slurp steam wl-clipboard brightnessctl playerctl pavucontrol obs-studio
+libnotify noto-fonts noto-fonts-emoji ttf-dejavu ttf-jetbrains-mono-nerd
+ttf-meslo-nerd
+```
+
+Steam comes from Arch `multilib`. If pacman cannot find `steam`, enable
+`[multilib]` in `/etc/pacman.conf`, then rerun the script.
+
+Hyprland script enables:
+
+```text
+NetworkManager.service
+sddm.service
+xremap.service
+noctalia.service
+plasma-polkit-agent.service
 ```
 
 For noninteractive setup:

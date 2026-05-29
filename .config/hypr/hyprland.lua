@@ -4,14 +4,55 @@ local terminal = "ghostty"
 local browser = "zen-browser"
 local file_manager = "dolphin"
 local menu = "wofi --show drun"
-local discord = "discord-screenaudio"
+local discord = "discord"
+local clipboard_manager = "qs -c noctalia-shell ipc call launcher clipboard"
 local main_mod = "SUPER"
 local home = assert(os.getenv("HOME"), "HOME is not set")
-local screenshot_region = home .. "/.local/bin/hypr-screenshot-region"
+local screenshot_region = home .. "/.config/hypr/bin/hypr-screenshot-region"
 local hyprgroup = dofile(home .. "/.config/hypr/hyprGroup/lua/hyprgroup.lua")
-local gpu_session_env = "__NV_PRIME_RENDER_OFFLOAD __GLX_VENDOR_LIBRARY_NAME __VK_LAYER_NV_optimus LIBVA_DRIVER_NAME"
-local systemd_session_env = "WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE "
-	.. gpu_session_env
+
+local function command_succeeds(command)
+	local ok = os.execute(command .. " >/dev/null 2>&1")
+	return ok == true or ok == 0
+end
+
+local function path_exists(path)
+	local file = io.open(path, "r")
+	if file then
+		file:close()
+		return true
+	end
+
+	return command_succeeds("test -e " .. path)
+end
+
+local function nvidia_available()
+	return path_exists("/proc/driver/nvidia/version")
+		or path_exists("/dev/nvidiactl")
+		or command_succeeds("nvidia-smi -L")
+end
+
+local has_nvidia = nvidia_available()
+local systemd_session_env_names = {
+	"WAYLAND_DISPLAY",
+	"HYPRLAND_INSTANCE_SIGNATURE",
+	"XDG_CURRENT_DESKTOP",
+	"XDG_SESSION_TYPE",
+}
+
+if has_nvidia then
+	for _, name in ipairs({
+		"GBM_BACKEND",
+		"__NV_PRIME_RENDER_OFFLOAD",
+		"__GLX_VENDOR_LIBRARY_NAME",
+		"__VK_LAYER_NV_optimus",
+		"LIBVA_DRIVER_NAME",
+	}) do
+		table.insert(systemd_session_env_names, name)
+	end
+end
+
+local systemd_session_env = table.concat(systemd_session_env_names, " ")
 local import_systemd_session_env = "systemctl --user import-environment " .. systemd_session_env
 local update_dbus_session_env = "dbus-update-activation-environment --systemd " .. systemd_session_env
 local restart_xremap = "sh -lc '"
@@ -26,12 +67,35 @@ local refresh_screen_share_portals = "sh -lc '"
 	.. update_dbus_session_env
 	.. "; systemctl --user reset-failed xdg-desktop-portal-hyprland.service xdg-desktop-portal.service"
 	.. "; systemctl --user restart xdg-desktop-portal-hyprland.service xdg-desktop-portal.service'"
-local laptop_monitor = "eDP-1"
-local external_mouse = "hp--inc-hyperx-pulsefire-haste-2"
+local internal_monitor
 
-local function external_monitor_present()
-	for _, monitor in ipairs(hl.get_monitors()) do
-		if monitor.name ~= laptop_monitor then
+local function get_monitors()
+	local ok, monitors = pcall(hl.get_monitors)
+	if not ok or type(monitors) ~= "table" then
+		return {}
+	end
+
+	return monitors
+end
+
+local function is_internal_monitor(name)
+	return name:match("^eDP") or name:match("^LVDS") or name:match("^DSI")
+end
+
+local function find_internal_monitor()
+	for _, monitor in ipairs(get_monitors()) do
+		if type(monitor.name) == "string" and is_internal_monitor(monitor.name) then
+			internal_monitor = monitor.name
+			return internal_monitor
+		end
+	end
+
+	return internal_monitor
+end
+
+local function external_monitor_present(internal_name)
+	for _, monitor in ipairs(get_monitors()) do
+		if type(monitor.name) == "string" and monitor.name ~= internal_name then
 			return true
 		end
 	end
@@ -40,15 +104,20 @@ local function external_monitor_present()
 end
 
 local function apply_monitor_setup()
-	if external_monitor_present() then
+	local internal_name = find_internal_monitor()
+	if not internal_name then
+		return
+	end
+
+	if external_monitor_present(internal_name) then
 		hl.monitor({
-			output = laptop_monitor,
+			output = internal_name,
 			disabled = true,
 		})
 	else
 		hl.monitor({
-			output = laptop_monitor,
-			mode = "1920x1200@144.00",
+			output = internal_name,
+			mode = "highrr",
 			position = "auto",
 			scale = 1.5,
 		})
@@ -84,10 +153,14 @@ end)
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 hl.env("SHELL", "/usr/bin/bash")
-hl.env("__NV_PRIME_RENDER_OFFLOAD", "1")
-hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
-hl.env("__VK_LAYER_NV_optimus", "NVIDIA_only")
-hl.env("LIBVA_DRIVER_NAME", "nvidia")
+
+if has_nvidia then
+	hl.env("GBM_BACKEND", "nvidia-drm")
+	hl.env("__NV_PRIME_RENDER_OFFLOAD", "1")
+	hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+	hl.env("__VK_LAYER_NV_optimus", "NVIDIA_only")
+	hl.env("LIBVA_DRIVER_NAME", "nvidia")
+end
 
 hl.config({
 	general = {
@@ -136,18 +209,13 @@ hl.config({
 		kb_options = "",
 		kb_rules = "",
 		follow_mouse = 1,
-		sensitivity = 0,
+		sensitivity = -0.5,
 		scroll_factor = 4.0,
 		touchpad = {
 			natural_scroll = true,
 			scroll_factor = 4.0,
 		},
 	},
-})
-
-hl.device({
-	name = external_mouse,
-	sensitivity = -0.5,
 })
 
 hl.layer_rule({
@@ -168,7 +236,7 @@ hl.window_rule({
 })
 
 hl.bind(main_mod .. " + T", hl.dsp.exec_cmd(terminal))
-hl.bind(main_mod .. " + SHIFT + V", hl.dsp.exec_cmd("code"))
+hl.bind(main_mod .. " + SHIFT + V", hl.dsp.exec_cmd(clipboard_manager))
 hl.bind(main_mod .. " + B", hl.dsp.exec_cmd(browser))
 hl.bind(main_mod .. " + I", hl.dsp.exec_cmd(file_manager))
 hl.bind(main_mod .. " + SHIFT + P", hl.dsp.exec_cmd(screenshot_region))
@@ -177,8 +245,8 @@ hl.bind(main_mod .. " + C", hl.dsp.send_shortcut({ mods = "CTRL", key = "Insert"
 hl.bind(main_mod .. " + X", hl.dsp.send_shortcut({ mods = "CTRL", key = "X" }))
 hl.bind(main_mod .. " + V", hl.dsp.send_shortcut({ mods = "SHIFT", key = "Insert" }))
 
-hl.bind(main_mod .. " + O", hl.dsp.exec_cmd("obs"))
-hl.bind(main_mod .. " + SHIFT + O", hl.dsp.exec_cmd(discord))
+hl.bind(main_mod .. " + O", hl.dsp.exec_cmd(discord))
+hl.bind(main_mod .. " + SHIFT + O", hl.dsp.exec_cmd("obs"))
 hl.bind(main_mod .. " + P", hl.dsp.exec_cmd(menu))
 hl.bind(main_mod .. " + F", hl.dsp.window.fullscreen(1))
 hl.bind(main_mod .. " + M", hl.dsp.window.close())

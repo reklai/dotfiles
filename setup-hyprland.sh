@@ -2,21 +2,21 @@
 set -eu
 
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-pacman_file="$repo_dir/packages/arch-pacman.txt"
-aur_file="$repo_dir/packages/arch-aur.txt"
+pacman_file="$repo_dir/packages/hyprland-pacman.txt"
+aur_file="$repo_dir/packages/hyprland-aur.txt"
 
 dry_run=0
 skip_aur=0
 no_link=0
+no_sddm=0
 aur_helper=""
 
 usage() {
 	cat <<'EOF'
-usage: ./setup-arch.sh [--dry-run] [--skip-aur] [--no-link] [--aur-helper paru|yay]
+usage: ./setup-hyprland.sh [--dry-run] [--skip-aur] [--no-link] [--no-sddm] [--aur-helper paru|yay]
 
-Installs official Arch packages, sets the stable Rust toolchain, uses an
-installed AUR helper when available, asks which helper to install when needed,
-installs AUR packages, then links config files.
+Install Hyprland desktop pieces, prefer the hyprland.lua config, enable needed
+system/user services, and link config files.
 EOF
 }
 
@@ -35,6 +35,9 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--no-link)
 			no_link=1
+			;;
+		--no-sddm)
+			no_sddm=1
 			;;
 		--aur-helper)
 			shift
@@ -92,24 +95,9 @@ install_pacman_packages() {
 
 	command -v pacman >/dev/null 2>&1 || die "pacman not found; this script expects Arch Linux."
 
-	say "installing official Arch packages"
+	say "installing Hyprland pacman packages"
 	# shellcheck disable=SC2086
 	run sudo pacman -Syu --needed $packages
-}
-
-setup_rust_toolchain() {
-	say "setting Rust default toolchain"
-
-	if [ "$dry_run" -eq 1 ]; then
-		run rustup default stable
-		return 0
-	fi
-
-	if command -v rustup >/dev/null 2>&1; then
-		run rustup default stable
-	else
-		say "warning: rustup not found; skipping Rust toolchain setup"
-	fi
 }
 
 choose_aur_helper() {
@@ -130,7 +118,6 @@ choose_aur_helper() {
 
 	if [ ! -t 0 ]; then
 		die "no AUR helper found; rerun with --aur-helper paru or --aur-helper yay"
-		return 0
 	fi
 
 	while :; do
@@ -190,7 +177,7 @@ install_aur_packages() {
 	choose_aur_helper
 	install_aur_helper
 
-	say "installing AUR packages with $aur_helper"
+	say "installing Hyprland AUR packages with $aur_helper"
 	# shellcheck disable=SC2086
 	run "$aur_helper" -S --needed $packages
 }
@@ -208,9 +195,42 @@ link_config() {
 	fi
 }
 
+enable_system_services() {
+	say "enabling system services"
+	run sudo systemctl enable --now NetworkManager.service
+
+	if [ "$no_sddm" -eq 0 ]; then
+		run sudo systemctl enable sddm.service
+	else
+		say "skipping sddm"
+	fi
+}
+
+enable_user_services() {
+	say "enabling user services"
+	run systemctl --user daemon-reload
+	run systemctl --user enable xremap.service noctalia.service plasma-polkit-agent.service
+}
+
+check_lua_config() {
+	config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+
+	if [ -f "$config_home/hypr/hyprland.lua" ] || [ "$dry_run" -eq 1 ]; then
+		say "hyprland.lua is the preferred config"
+	else
+		say "warning: $config_home/hypr/hyprland.lua is missing"
+	fi
+}
+
 install_pacman_packages
-setup_rust_toolchain
 install_aur_packages
 link_config
+enable_system_services
+enable_user_services
+check_lua_config
 
 say "done"
+say "TTY start: uwsm start hyprland"
+if [ "$no_sddm" -eq 0 ]; then
+	say "Display manager: reboot and choose Hyprland from sddm"
+fi

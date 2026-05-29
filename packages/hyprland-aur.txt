@@ -1,8 +1,7 @@
-# AUR packages
+# Hyprland setup packages from AUR
 nerd-fonts-sf-mono
 noctalia-qs
 noctalia-shell
-prettierd
 vesktop
 xremap-hypr-bin
 zen-browser-bin

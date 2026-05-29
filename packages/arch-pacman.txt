@@ -23,25 +23,37 @@ tree-sitter-cli
 
 # Desktop / Hyprland
 brightnessctl
+cliphist
 code
+discord
 dolphin
 ghostty
 grim
 hyprland
 libnotify
+networkmanager
 obs-studio
 pavucontrol
 pipewire
 pipewire-alsa
 pipewire-pulse
 playerctl
+polkit
+polkit-kde-agent
+qt5-wayland
+qt6-wayland
+sddm
 slurp
+steam
 uwsm
 wireplumber
 wl-clipboard
 wofi
+xorg-xwayland
 xdg-desktop-portal
+xdg-desktop-portal-gtk
 xdg-desktop-portal-hyprland
+xdg-utils
 
 # Fonts
 noto-fonts

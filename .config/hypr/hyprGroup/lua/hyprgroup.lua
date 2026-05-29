@@ -54,8 +54,8 @@ function M.setup(opts)
 
 	hl.exec_cmd(shell_quote(script) .. " daemon")
 
-	hl.bind(main_mod .. " + mouse_down", hl.dsp.group.next({}))
-	hl.bind(main_mod .. " + mouse_up", hl.dsp.group.prev({}))
+	hl.bind(main_mod .. " + mouse_down", hl.dsp.group.prev({}))
+	hl.bind(main_mod .. " + mouse_up", hl.dsp.group.next({}))
 	hl.bind(main_mod .. " + backslash", hl.dsp.group.next({}))
 	hl.bind(main_mod .. " + SHIFT + backslash", hl.dsp.group.prev({}))
 	hl.bind(main_mod .. " + G", hl.dsp.exec_cmd(shell_quote(script) .. " menu"))

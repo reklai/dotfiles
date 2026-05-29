@@ -14,18 +14,20 @@ ShellRoot {
 	property int pointerY: 0
 	property string snapshotAddress: ""
 	property string snapshotClass: ""
+	property string snapshotSource: "none"
 	property string snapshotTitle: "No Active Window"
 	property bool snapshotHasContainer: false
 	property var snapshotGrouped: []
 	property var snapshotWindowDetails: ({})
+	property string selectedAddress: ""
 	property bool tabDragActive: false
 	property bool tabPressActive: false
 	property string pressedTabAddress: ""
 	property string draggedTabAddress: ""
 	property int draggedTabStartIndex: -1
 	property int tabDropIndex: -1
-	property real draggedTabOffsetX: 0
-	readonly property int tabWidth: 150
+	property real draggedTabOffsetY: 0
+	readonly property int tabHeight: 38
 	readonly property int tabGap: 2
 	readonly property int tabDragThreshold: 8
 
@@ -91,6 +93,10 @@ ShellRoot {
 
 		if (keepOpen) {
 			refreshSnapshotTimer.restart();
+
+			if (action === "close") {
+				closeRefreshSnapshotTimer.restart();
+			}
 		} else {
 			closeMenu();
 		}
@@ -165,9 +171,11 @@ ShellRoot {
 		snapshotAddress = "";
 		snapshotTitle = "No Active Window";
 		snapshotClass = "";
+		snapshotSource = "none";
 		snapshotHasContainer = false;
 		snapshotGrouped = [];
 		snapshotWindowDetails = {};
+		selectedAddress = "";
 	}
 
 	function captureActiveWindowFromHyprland() {
@@ -183,9 +191,11 @@ ShellRoot {
 		snapshotAddress = active.address;
 		snapshotTitle = active.title || "Untitled window";
 		snapshotClass = ipc && ipc.class ? ipc.class : "";
+		snapshotSource = "active";
 		snapshotHasContainer = true;
 		snapshotGrouped = grouped;
 		snapshotWindowDetails = {};
+		ensureSelectedWindow();
 	}
 
 	function applyContainerSnapshot(snapshot) {
@@ -197,9 +207,11 @@ ShellRoot {
 		snapshotAddress = String(snapshot.address || "");
 		snapshotTitle = snapshot.title || "Untitled window";
 		snapshotClass = snapshot.className || "";
+		snapshotSource = String(snapshot.source || "none");
 		snapshotHasContainer = true;
 		snapshotGrouped = copyGroupedAddresses(snapshot.grouped);
 		snapshotWindowDetails = snapshotWindowDetailsByAddress(snapshot.windows || []);
+		ensureSelectedWindow();
 	}
 
 	function snapshotWindowDetailsByAddress(windows) {
@@ -300,6 +312,7 @@ ShellRoot {
 			entries.push({
 				address: address,
 				active: address === snapshotAddress,
+				selected: address === selectedAddress,
 				className: ipc && ipc.class ? ipc.class : details ? details.className : "",
 				title: tabTitle(client, details, i)
 			});
@@ -308,18 +321,92 @@ ShellRoot {
 		return entries;
 	}
 
-	function activeWindowPositionLabel() {
-		if (!snapshotHasContainer || snapshotGrouped.length === 0) {
-			return "";
-		}
-
+	function indexForAddress(address) {
 		for (let i = 0; i < snapshotGrouped.length; i++) {
-			if (snapshotGrouped[i] === snapshotAddress) {
-				return String(i + 1) + " / " + String(snapshotGrouped.length);
+			if (snapshotGrouped[i] === address) {
+				return i;
 			}
 		}
 
+		return -1;
+	}
+
+	function ensureSelectedWindow() {
+		if (!snapshotHasContainer || snapshotGrouped.length === 0) {
+			selectedAddress = "";
+			return;
+		}
+
+		if (selectedAddress && hasAddress(snapshotGrouped, selectedAddress)) {
+			return;
+		}
+
+		selectedAddress = hasAddress(snapshotGrouped, snapshotAddress) ? snapshotAddress : snapshotGrouped[0];
+	}
+
+	function selectWindow(address) {
+		if (hasAddress(snapshotGrouped, address)) {
+			selectedAddress = address;
+		}
+	}
+
+	function hasSelectedWindow() {
+		return snapshotHasContainer && selectedAddress.length > 0 && hasAddress(snapshotGrouped, selectedAddress);
+	}
+
+	function windowTitleForAddress(address) {
+		const index = indexForAddress(address);
+
+		if (index < 0) {
+			return "No Active Window";
+		}
+
+		const client = clientForAddress(address);
+		const details = snapshotWindowDetailsForAddress(address);
+
+		return tabTitle(client, details, index);
+	}
+
+	function windowClassForAddress(address) {
+		const client = clientForAddress(address);
+		const ipc = client && client.lastIpcObject ? client.lastIpcObject : null;
+		const details = snapshotWindowDetailsForAddress(address);
+
+		return ipc && ipc.class ? ipc.class : details ? details.className : "";
+	}
+
+	function selectedWindowTitle() {
+		return hasSelectedWindow() ? windowTitleForAddress(selectedAddress) : "No Active Window";
+	}
+
+	function selectedWindowClassLabel() {
+		if (!hasSelectedWindow()) {
+			return "";
+		}
+
+		return windowClassForAddress(selectedAddress) || selectedAddress;
+	}
+
+	function selectedWindowPositionLabel() {
+		if (!hasSelectedWindow()) {
+			return "";
+		}
+
+		const index = indexForAddress(selectedAddress);
+
+		if (index >= 0) {
+			return String(index + 1) + " / " + String(snapshotGrouped.length);
+		}
+
 		return "1 / " + String(snapshotGrouped.length);
+	}
+
+	function containerStateLabel() {
+		if (snapshotSource === "active") {
+			return "Active Container";
+		}
+
+		return "No Active Container";
 	}
 
 	function clampedTabIndex(index) {
@@ -330,9 +417,9 @@ ShellRoot {
 		return root.clamp(index, 0, snapshotGrouped.length - 1);
 	}
 
-	function tabIndexForLocalX(localX) {
-		const slotWidth = tabWidth + tabGap;
-		const centeredIndex = Math.floor((localX + (tabWidth / 2)) / slotWidth);
+	function tabIndexForLocalY(localY) {
+		const slotHeight = tabHeight + tabGap;
+		const centeredIndex = Math.floor((localY + (tabHeight / 2)) / slotHeight);
 
 		return clampedTabIndex(centeredIndex);
 	}
@@ -357,40 +444,40 @@ ShellRoot {
 		pressedTabAddress = address;
 	}
 
-	function updateTabDropIndex(localX) {
+	function updateTabDropIndex(localY) {
 		if (!tabDragActive) {
 			return;
 		}
 
-		tabDropIndex = tabIndexForLocalX(localX);
+		tabDropIndex = tabIndexForLocalY(localY);
 	}
 
-	function updateTabDragPosition(localX) {
+	function updateTabDragPosition(localY) {
 		if (!tabDragActive || draggedTabStartIndex < 0) {
 			return;
 		}
 
-		const slotWidth = tabWidth + tabGap;
-		const maxLeft = Math.max(0, (snapshotGrouped.length - 1) * slotWidth);
-		const clampedLeft = root.clamp(localX, 0, maxLeft);
+		const slotHeight = tabHeight + tabGap;
+		const maxTop = Math.max(0, (snapshotGrouped.length - 1) * slotHeight);
+		const clampedTop = root.clamp(localY, 0, maxTop);
 
-		draggedTabOffsetX = clampedLeft - (draggedTabStartIndex * slotWidth);
-		updateTabDropIndex(clampedLeft);
+		draggedTabOffsetY = clampedTop - (draggedTabStartIndex * slotHeight);
+		updateTabDropIndex(clampedTop);
 	}
 
-	function tabDropMarkerX() {
+	function tabDropMarkerY() {
 		if (!tabDragActive || tabDropIndex < 0) {
 			return -100;
 		}
 
-		const slotWidth = tabWidth + tabGap;
-		const targetX = tabDropIndex * slotWidth;
+		const slotHeight = tabHeight + tabGap;
+		const targetY = tabDropIndex * slotHeight;
 
 		if (tabDropIndex > draggedTabStartIndex) {
-			return targetX + tabWidth + Math.round(tabGap / 2);
+			return targetY + tabHeight + Math.round(tabGap / 2);
 		}
 
-		return Math.max(0, targetX - Math.round(tabGap / 2));
+		return Math.max(0, targetY - Math.round(tabGap / 2));
 	}
 
 	function cancelTabDrag() {
@@ -400,7 +487,7 @@ ShellRoot {
 		draggedTabAddress = "";
 		draggedTabStartIndex = -1;
 		tabDropIndex = -1;
-		draggedTabOffsetX = 0;
+		draggedTabOffsetY = 0;
 	}
 
 	function moveAddressInSnapshot(address, targetIndex) {
@@ -436,6 +523,13 @@ ShellRoot {
 	Timer {
 		id: refreshSnapshotTimer
 		interval: 80
+		repeat: false
+		onTriggered: root.captureActiveWindow()
+	}
+
+	Timer {
+		id: closeRefreshSnapshotTimer
+		interval: 320
 		repeat: false
 		onTriggered: root.captureActiveWindow()
 	}
@@ -553,7 +647,7 @@ ShellRoot {
 					return root.clamp(Math.round(target), edgeMargin, Math.max(edgeMargin, surface.height - height - edgeMargin));
 				}
 
-				width: Math.max(420, Math.min(560, monitorWidth - 36))
+				width: Math.max(420, Math.min(640, monitorWidth - 36))
 				height: Math.max(280, Math.min(330, monitorHeight - 74))
 				x: targetX()
 				y: targetY()
@@ -695,21 +789,31 @@ ShellRoot {
 
 						Column {
 							id: actionPane
-							width: 172
+							width: 244
 							height: parent.height
 							spacing: 8
 
 							ActionButton {
 								width: parent.width
-								label: "Add"
+								label: "Add to Container"
+								actionEnabled: root.snapshotSource !== "active"
 								onTriggered: root.run("add")
 							}
 
 							ActionButton {
 								width: parent.width
-								label: "Remove"
+								label: "Remove from Container"
 								danger: true
-								onTriggered: root.run("remove")
+								actionEnabled: root.hasSelectedWindow()
+								onTriggered: root.run("remove", root.selectedAddress, true)
+							}
+
+							ActionButton {
+								width: parent.width
+								label: "Close Window Inside Container"
+								danger: true
+								actionEnabled: root.hasSelectedWindow()
+								onTriggered: root.run("close", root.selectedAddress, true)
 							}
 						}
 
@@ -735,15 +839,16 @@ ShellRoot {
 								radius: 8
 								clip: true
 
-								Column {
+								Item {
 									anchors.fill: parent
-									spacing: 0
 
 									Rectangle {
 										id: windowTabsPanel
-										width: parent.width
-										height: 48
-										color: "#1f2025"
+										anchors.left: parent.left
+										anchors.right: parent.right
+										anchors.top: tabsDivider.bottom
+										anchors.bottom: parent.bottom
+										color: "#11141a"
 
 										Text {
 											anchors.centerIn: parent
@@ -758,17 +863,17 @@ ShellRoot {
 										Flickable {
 											id: tabFlickable
 											anchors.fill: parent
-											anchors.margins: 4
+											anchors.margins: 6
 											visible: root.groupWindowEntries().length > 0
 											clip: true
 											boundsBehavior: Flickable.StopAtBounds
-											contentWidth: tabRow.width
-											contentHeight: height
-											interactive: contentWidth > width && !root.tabDragActive
+											contentWidth: width
+											contentHeight: tabColumn.height
+											interactive: contentHeight > height && !root.tabDragActive
 
-											Row {
-												id: tabRow
-												height: parent.height
+											Column {
+												id: tabColumn
+												width: tabFlickable.width
 												spacing: root.tabGap
 
 												Repeater {
@@ -779,26 +884,26 @@ ShellRoot {
 														readonly property bool dragged: root.tabDragActive && root.draggedTabAddress === modelData.address
 														readonly property bool pressed: root.tabPressActive && root.pressedTabAddress === modelData.address
 
-														width: root.tabWidth
-														height: tabRow.height
+														width: tabColumn.width
+														height: root.tabHeight
 														opacity: dragged ? 0.95 : 1
 														scale: dragged ? 1.04 : pressed ? 1.02 : 1
-														y: dragged ? -2 : pressed ? -1 : 0
+														x: dragged ? 2 : pressed ? 1 : 0
 														z: dragged || pressed ? 2 : 0
 														transform: Translate {
-															x: groupTab.dragged ? root.draggedTabOffsetX : 0
+															y: groupTab.dragged ? root.draggedTabOffsetY : 0
 														}
 
 														Rectangle {
 															anchors.fill: parent
-															anchors.topMargin: modelData.active ? 0 : 3
+															anchors.topMargin: 1
 															anchors.leftMargin: 1
 															anchors.rightMargin: 1
-															anchors.bottomMargin: 0
-															color: groupTab.dragged ? "#4a4234" : groupTab.pressed ? "#3d372d" : modelData.active ? "#3d3e44" : "#26272d"
-															border.color: groupTab.dragged ? "#d8b46a" : groupTab.pressed ? "#c59f5a" : modelData.active ? "#5a5c64" : "#3d3f47"
+															anchors.bottomMargin: 1
+															color: groupTab.dragged ? "#4a4234" : groupTab.pressed ? "#3d372d" : modelData.selected ? "#3d3e44" : modelData.active ? "#303238" : "#26272d"
+															border.color: groupTab.dragged ? "#d8b46a" : groupTab.pressed ? "#c59f5a" : modelData.selected ? "#5a5c64" : "#3d3f47"
 															border.width: groupTab.dragged || groupTab.pressed ? 2 : 1
-															radius: modelData.active ? 7 : 5
+															radius: 5
 														}
 
 														Item {
@@ -826,22 +931,12 @@ ShellRoot {
 														}
 
 														Rectangle {
-															width: 1
-															height: parent.height - 14
-															anchors.right: parent.right
-															anchors.verticalCenter: parent.verticalCenter
-															visible: index < root.groupWindowEntries().length - 1
-															color: "#4a4c54"
-														}
-
-														Rectangle {
-															height: 2
+															width: 3
+															height: parent.height - 12
 															anchors.left: parent.left
-															anchors.right: parent.right
-															anchors.leftMargin: 12
-															anchors.rightMargin: 12
-															anchors.bottom: parent.bottom
-															visible: modelData.active
+															anchors.leftMargin: 2
+															anchors.verticalCenter: parent.verticalCenter
+															visible: modelData.selected
 															color: "#d4d4d8"
 															radius: 1
 														}
@@ -853,11 +948,11 @@ ShellRoot {
 															anchors.rightMargin: 14
 															anchors.verticalCenter: parent.verticalCenter
 															text: modelData.title
-															color: modelData.active ? "#f4f4f5" : "#c5c8cf"
+															color: modelData.selected ? "#f4f4f5" : "#c5c8cf"
 															elide: Text.ElideRight
-															horizontalAlignment: Text.AlignHCenter
+															horizontalAlignment: Text.AlignLeft
 															font.pixelSize: 12
-															font.weight: modelData.active ? Font.DemiBold : Font.Normal
+															font.weight: modelData.selected ? Font.DemiBold : Font.Normal
 															maximumLineCount: 1
 														}
 
@@ -882,6 +977,7 @@ ShellRoot {
 																pressY = mouse.y;
 																pointerDown = true;
 																dragStarted = false;
+																root.selectWindow(modelData.address);
 																root.beginTabPress(modelData.address);
 															}
 
@@ -892,7 +988,7 @@ ShellRoot {
 
 																const dx = Math.abs(mouse.x - pressX);
 																const dy = Math.abs(mouse.y - pressY);
-																const point = tabMouse.mapToItem(tabRow, mouse.x, mouse.y);
+																const point = tabMouse.mapToItem(tabColumn, mouse.x, mouse.y);
 
 																if (!dragStarted && (dx > root.tabDragThreshold || dy > root.tabDragThreshold)) {
 																	dragStarted = true;
@@ -900,7 +996,7 @@ ShellRoot {
 																}
 
 																if (root.tabDragActive && root.draggedTabAddress === modelData.address) {
-																	root.updateTabDragPosition(point.x - pressX);
+																	root.updateTabDragPosition(point.y - pressY);
 																}
 															}
 
@@ -915,8 +1011,17 @@ ShellRoot {
 																	root.finishTabDrag(modelData.address);
 																} else {
 																	root.cancelTabDrag();
-																	root.run("jump", modelData.address, true);
 																}
+															}
+
+															onDoubleClicked: mouse => {
+																if (mouse.button !== Qt.LeftButton) {
+																	return;
+																}
+
+																root.selectWindow(modelData.address);
+																root.cancelTabDrag();
+																root.run("jump", modelData.address, true);
 															}
 
 															onCanceled: {
@@ -934,10 +1039,10 @@ ShellRoot {
 											Rectangle {
 												id: tabDropMarker
 												visible: root.tabDragActive && root.tabDropIndex >= 0
-												x: root.tabDropMarkerX()
-												y: 5
-												width: 3
-												height: tabRow.height - 10
+												x: 6
+												y: root.tabDropMarkerY()
+												width: tabFlickable.width - 12
+												height: 3
 												color: "#d8b46a"
 												radius: 1
 												z: 3
@@ -946,15 +1051,20 @@ ShellRoot {
 									}
 
 									Rectangle {
-										width: parent.width
+										id: tabsDivider
+										anchors.left: parent.left
+										anchors.right: parent.right
+										anchors.top: activeWindowPanel.bottom
 										height: 1
 										color: "#383a40"
 									}
 
 									Item {
 										id: activeWindowPanel
-										width: parent.width
-										height: parent.height - windowTabsPanel.height - 1
+										anchors.left: parent.left
+										anchors.right: parent.right
+										anchors.top: parent.top
+										height: Math.min(112, Math.max(86, parent.height - 118))
 
 										Column {
 											anchors.fill: parent
@@ -965,10 +1075,10 @@ ShellRoot {
 												width: parent.width
 												height: 18
 
-												Text {
-													width: parent.width - positionText.width - 10
-													anchors.verticalCenter: parent.verticalCenter
-													text: "Active Window"
+													Text {
+														width: parent.width - positionText.width - 10
+														anchors.verticalCenter: parent.verticalCenter
+														text: root.containerStateLabel()
 													color: "#9ca3af"
 													elide: Text.ElideRight
 													font.pixelSize: 12
@@ -977,18 +1087,18 @@ ShellRoot {
 												}
 
 												Text {
-													id: positionText
-													anchors.verticalCenter: parent.verticalCenter
-													text: root.activeWindowPositionLabel()
+														id: positionText
+														anchors.verticalCenter: parent.verticalCenter
+														text: root.selectedWindowPositionLabel()
 													color: "#d4d4d8"
 													font.pixelSize: 12
 													font.weight: Font.DemiBold
 												}
 											}
 
-											Text {
-												width: parent.width
-												text: root.snapshotHasContainer ? root.snapshotTitle : "No Active Window"
+												Text {
+													width: parent.width
+													text: root.selectedWindowTitle()
 												color: "#f8fafc"
 												elide: Text.ElideRight
 												font.pixelSize: 16
@@ -997,9 +1107,9 @@ ShellRoot {
 											}
 
 											Text {
-												width: parent.width
-												visible: root.snapshotHasContainer
-												text: root.snapshotClass || root.snapshotAddress
+													width: parent.width
+													visible: root.hasSelectedWindow()
+													text: root.selectedWindowClassLabel()
 												color: "#9ca3af"
 												elide: Text.ElideMiddle
 												font.pixelSize: 12

@@ -142,6 +142,43 @@ test_remove_outside_container_is_noop() {
 	assert_no_notifications
 }
 
+test_remove_selected_remembered_anchor_remembers_remaining_window() {
+	reset_logs
+	write_active '{"address":"0x999","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '%s\n' \
+		'[{"address":"0x111","workspace":{"id":2},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x222","workspace":{"id":2},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x999","workspace":{"id":1},"grouped":[]}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" remove 0x111
+
+	assert_file_equals "$dispatch_log" $'hl.dsp.focus({ window = "address:0x111" })\nhl.dsp.window.move({ out_of_group = true })'
+	assert_file_equals "$state_file" $'anchor\t0x222'
+	assert_no_notifications
+}
+
+test_remove_rejects_selected_window_outside_container() {
+	reset_logs
+	write_active '{"address":"0xaaa","monitor":1,"workspace":{"id":1},"grouped":["0xaaa","0xbbb"]}'
+	printf '%s\n' \
+		'[{"address":"0xaaa","workspace":{"id":1},"grouped":["0xaaa","0xbbb"]},' \
+		'{"address":"0xbbb","workspace":{"id":1},"grouped":["0xaaa","0xbbb"]},' \
+		'{"address":"0x999","workspace":{"id":1},"grouped":[]}]' \
+		>"$clients_json"
+	printf 'anchor\t0xaaa\n' >"$state_file"
+
+	if bash "$subject" remove 0x999; then
+		printf 'Expected remove outside Container to fail.\n' >&2
+		return 1
+	fi
+
+	assert_file_equals "$dispatch_log" ""
+	assert_file_equals "$state_file" $'anchor\t0xaaa'
+	assert_file_equals "$notify_log" "HyprGroup Window is not in the Container."
+}
+
 test_add_remembered_one_window_container_is_noop() {
 	reset_logs
 	write_active '{"address":"0xddd","monitor":1,"workspace":{"id":1},"grouped":[]}'
@@ -226,6 +263,118 @@ test_reorder_single_window_container_is_noop() {
 	assert_no_notifications
 }
 
+test_close_active_grouped_window_keeps_anchor() {
+	reset_logs
+	write_active '{"address":"0xaaa","monitor":1,"workspace":{"id":1},"grouped":["0xaaa","0xbbb"]}'
+	printf '[{"address":"0xaaa","workspace":{"id":1},"grouped":["0xaaa","0xbbb"]},{"address":"0xbbb","workspace":{"id":1},"grouped":["0xaaa","0xbbb"]}]\n' >"$clients_json"
+	printf 'anchor\t0xbbb\n' >"$state_file"
+
+	bash "$subject" close 0xaaa
+
+	assert_file_equals "$dispatch_log" 'hl.dsp.window.close({})'
+	assert_file_equals "$state_file" $'anchor\t0xbbb'
+	assert_no_notifications
+}
+
+test_close_remembered_anchor_remembers_remaining_window() {
+	reset_logs
+	write_active '{"address":"0x999","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '%s\n' \
+		'[{"address":"0x111","workspace":{"id":2},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x222","workspace":{"id":2},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x999","workspace":{"id":1},"grouped":[]}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" close 0x111
+
+	assert_file_equals "$dispatch_log" $'hl.dsp.focus({ window = "address:0x111" })\nhl.dsp.window.close({})'
+	assert_file_equals "$state_file" $'anchor\t0x222'
+	assert_no_notifications
+}
+
+test_close_remembered_active_when_focus_is_outside_group() {
+	reset_logs
+	write_active '{"address":"0x999","monitor":1,"workspace":{"id":1},"grouped":[],"focusHistoryID":0}'
+	printf '%s\n' \
+		'[{"address":"0x111","workspace":{"id":2},"grouped":["0x111","0x222"],"focusHistoryID":8},' \
+		'{"address":"0x222","workspace":{"id":2},"grouped":["0x111","0x222"],"focusHistoryID":2},' \
+		'{"address":"0x999","workspace":{"id":1},"grouped":[],"focusHistoryID":0}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" close
+
+	assert_file_equals "$dispatch_log" $'hl.dsp.focus({ window = "address:0x222" })\nhl.dsp.window.close({})'
+	assert_file_equals "$state_file" $'anchor\t0x111'
+	assert_no_notifications
+}
+
+test_close_one_window_container_forgets_anchor() {
+	reset_logs
+	write_active '{"address":"0xaaa","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '[{"address":"0xaaa","workspace":{"id":1},"grouped":[]}]\n' >"$clients_json"
+	printf 'anchor\t0xaaa\n' >"$state_file"
+
+	bash "$subject" close
+
+	assert_file_equals "$dispatch_log" 'hl.dsp.window.close({})'
+	assert_file_equals "$state_file" ""
+	assert_no_notifications
+}
+
+test_close_rejects_window_outside_container() {
+	reset_logs
+	write_active '{"address":"0xaaa","monitor":1,"workspace":{"id":1},"grouped":["0xaaa","0xbbb"]}'
+	printf '%s\n' \
+		'[{"address":"0xaaa","workspace":{"id":1},"grouped":["0xaaa","0xbbb"]},' \
+		'{"address":"0xbbb","workspace":{"id":1},"grouped":["0xaaa","0xbbb"]},' \
+		'{"address":"0x999","workspace":{"id":1},"grouped":[]}]' \
+		>"$clients_json"
+	printf 'anchor\t0xaaa\n' >"$state_file"
+
+	if bash "$subject" close 0x999; then
+		printf 'Expected close outside Container to fail.\n' >&2
+		return 1
+	fi
+
+	assert_file_equals "$dispatch_log" ""
+	assert_file_equals "$state_file" $'anchor\t0xaaa'
+	assert_file_equals "$notify_log" "HyprGroup Window is not in the Container."
+}
+
+test_next_focuses_remembered_container_when_focus_is_outside_group() {
+	reset_logs
+	write_active '{"address":"0x999","title":"Loose terminal","class":"foot","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '%s\n' \
+		'[{"address":"0x111","title":"Editor","class":"code","workspace":{"id":2},"grouped":["0x111","0x222"],"focusHistoryID":8},' \
+		'{"address":"0x222","title":"Tests","class":"foot","workspace":{"id":2},"grouped":["0x111","0x222"],"focusHistoryID":2},' \
+		'{"address":"0x999","title":"Loose terminal","class":"foot","workspace":{"id":1},"grouped":[],"focusHistoryID":0}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" next
+
+	assert_file_equals "$dispatch_log" $'hl.dsp.focus({ window = "address:0x222" })\nhl.dsp.group.next({})'
+	assert_no_notifications
+}
+
+test_prev_focuses_remembered_container_when_focus_is_outside_group() {
+	reset_logs
+	write_active '{"address":"0x999","title":"Loose terminal","class":"foot","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '%s\n' \
+		'[{"address":"0x111","title":"Editor","class":"code","workspace":{"id":2},"grouped":["0x111","0x222"],"focusHistoryID":8},' \
+		'{"address":"0x222","title":"Tests","class":"foot","workspace":{"id":2},"grouped":["0x111","0x222"],"focusHistoryID":2},' \
+		'{"address":"0x999","title":"Loose terminal","class":"foot","workspace":{"id":1},"grouped":[],"focusHistoryID":0}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" prev
+
+	assert_file_equals "$dispatch_log" $'hl.dsp.focus({ window = "address:0x222" })\nhl.dsp.group.prev({})'
+	assert_no_notifications
+}
+
 test_snapshot_uses_remembered_container_when_focus_is_outside_group() {
 	local output
 
@@ -249,15 +398,48 @@ test_snapshot_uses_remembered_container_when_focus_is_outside_group() {
 	assert_no_notifications
 }
 
+test_snapshot_uses_recent_remembered_group_member_as_active_window() {
+	local output
+
+	reset_logs
+	write_active '{"address":"0x999","title":"Loose terminal","class":"foot","monitor":1,"workspace":{"id":1},"grouped":[],"focusHistoryID":0}'
+	printf '%s\n' \
+		'[{"address":"0x111","title":"Editor","class":"code","workspace":{"id":2},"grouped":["0x111","0x222"],"focusHistoryID":8},' \
+		'{"address":"0x222","title":"Tests","class":"foot","workspace":{"id":2},"grouped":["0x111","0x222"],"focusHistoryID":2},' \
+		'{"address":"0x999","title":"Loose terminal","class":"foot","workspace":{"id":1},"grouped":[],"focusHistoryID":0}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	output="$(bash "$subject" snapshot)"
+
+	if [[ "$output" != '{"hasContainer":true,"address":"0x222","title":"Tests","className":"foot","grouped":["0x111","0x222"],"windows":[{"address":"0x111","title":"Editor","className":"code"},{"address":"0x222","title":"Tests","className":"foot"}],"source":"remembered"}' ]]; then
+		printf 'Unexpected snapshot:\n%s\n' "$output" >&2
+		return 1
+	fi
+
+	assert_file_equals "$dispatch_log" ""
+	assert_no_notifications
+}
+
 test_remove_remembered_one_window_container
 test_remove_native_group_remembers_remaining_window
 test_remove_outside_container_is_noop
+test_remove_selected_remembered_anchor_remembers_remaining_window
+test_remove_rejects_selected_window_outside_container
 test_add_remembered_one_window_container_is_noop
 test_add_new_container_remembers_global_anchor
 test_add_brings_global_container_to_active_workspace
 test_reorder_moves_group_window_forward_to_index
 test_reorder_moves_group_window_backward_to_index
 test_reorder_single_window_container_is_noop
+test_close_active_grouped_window_keeps_anchor
+test_close_remembered_anchor_remembers_remaining_window
+test_close_remembered_active_when_focus_is_outside_group
+test_close_one_window_container_forgets_anchor
+test_close_rejects_window_outside_container
+test_next_focuses_remembered_container_when_focus_is_outside_group
+test_prev_focuses_remembered_container_when_focus_is_outside_group
 test_snapshot_uses_remembered_container_when_focus_is_outside_group
+test_snapshot_uses_recent_remembered_group_member_as_active_window
 
 printf 'hyprgroup CLI tests passed\n'
