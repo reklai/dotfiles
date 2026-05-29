@@ -1,0 +1,10 @@
+.config/dconf/
+.config/pulse/
+.config/session/
+.config/zen/
+.config/**/node_modules/
+.config/**/.git/
+
+*.bak
+*.swp
+*~

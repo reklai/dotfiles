@@ -1,0 +1,136 @@
+#!/bin/sh
+set -eu
+
+service="xremap.service"
+icon="keyboard"
+
+usage() {
+	printf '%s\n' "usage: noctalia-xremap-toggle [toggle|on|off|status|check|json]"
+}
+
+json_escape() {
+	printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+notify() {
+	case "$1" in
+		on)
+			summary="xremap"
+			body="Enabled"
+			urgency="low"
+			;;
+		off)
+			summary="xremap"
+			body="Disabled"
+			urgency="low"
+			;;
+		error)
+			summary="xremap"
+			body="Failed to update service"
+			urgency="critical"
+			;;
+		*)
+			summary="xremap"
+			body="$1"
+			urgency="normal"
+			;;
+	esac
+
+	if command -v notify-send >/dev/null 2>&1; then
+		notify-send -a "Noctalia" -u "$urgency" -t 2200 "$summary" "$body" >/dev/null 2>&1 || true
+	fi
+}
+
+import_session_env() {
+	systemctl --user import-environment \
+		WAYLAND_DISPLAY \
+		HYPRLAND_INSTANCE_SIGNATURE \
+		XDG_CURRENT_DESKTOP \
+		XDG_SESSION_TYPE >/dev/null 2>&1 || true
+}
+
+is_active() {
+	systemctl --user is-active --quiet "$service"
+}
+
+start_service() {
+	import_session_env
+	systemctl --user reset-failed "$service"
+	systemctl --user start "$service"
+	notify "on"
+	printf '%s\n' "on"
+}
+
+stop_service() {
+	systemctl --user stop "$service"
+	notify "off"
+	printf '%s\n' "off"
+}
+
+print_status() {
+	if is_active; then
+		printf '%s\n' "on"
+	else
+		printf '%s\n' "off"
+	fi
+}
+
+print_json() {
+	if is_active; then
+		text="On"
+		tooltip="xremap: on"
+		color="primary"
+	else
+		text="Off"
+		tooltip="xremap: off"
+		color="none"
+	fi
+
+	printf '{"text":"%s","icon":"%s","tooltip":"%s","color":"%s"}\n' \
+		"$(json_escape "$text")" \
+		"$(json_escape "$icon")" \
+		"$(json_escape "$tooltip")" \
+		"$(json_escape "$color")"
+}
+
+action="${1:-toggle}"
+
+case "$action" in
+	toggle)
+		if is_active; then
+			stop_service
+		else
+			start_service
+		fi
+		;;
+	on)
+		if is_active; then
+			printf '%s\n' "on"
+		else
+			start_service
+		fi
+		;;
+	off)
+		if is_active; then
+			stop_service
+		else
+			printf '%s\n' "off"
+		fi
+		;;
+	status)
+		print_status
+		;;
+	check)
+		is_active
+		;;
+	json)
+		print_json
+		;;
+	help|--help|-h)
+		usage
+		;;
+	*)
+		usage >&2
+		exit 2
+		;;
+esac

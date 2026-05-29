@@ -1,0 +1,17 @@
+modmap:
+  - name: basic_modmap
+    remap:
+      alt_l: enter
+      alt_r: backspace
+      ctrl_l: esc
+      shift_r: alt_l
+      enter: ctrl_l
+      ctrl_r: grave
+
+keymap:
+  - name: nav_keys
+    remap:
+      alt-h: left
+      alt-j: down
+      alt-k: up
+      alt-l: right

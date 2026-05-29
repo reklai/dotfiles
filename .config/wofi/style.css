@@ -1,0 +1,90 @@
+* {
+	font-family: "SFMono Nerd Font", "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
+	font-size: 14px;
+	font-weight: 500;
+	outline: none;
+	transition: none;
+}
+
+window {
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	color: #ebdbb2;
+}
+
+#outer-box {
+	margin: 0;
+	padding: 12px;
+	background: #1d2021;
+	border: 2px solid #504945;
+	border-radius: 8px;
+	box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+}
+
+#input {
+	min-height: 42px;
+	margin: 0 0 10px 0;
+	padding: 0 14px;
+	background: #282828;
+	color: #fbf1c7;
+	border: 1px solid #665c54;
+	border-radius: 8px;
+	box-shadow: none;
+	caret-color: #fabd2f;
+}
+
+#input:focus {
+	border-color: #d79921;
+}
+
+#scroll {
+	margin: 0;
+	padding: 0;
+	min-height: 320px;
+	background: transparent;
+	border: none;
+}
+
+#inner-box {
+	margin: 0;
+	padding: 0;
+	background: transparent;
+}
+
+#entry {
+	min-height: 44px;
+	margin: 2px 0;
+	padding: 0 10px;
+	background: transparent;
+	color: #ebdbb2;
+	border: 1px solid transparent;
+	border-radius: 8px;
+}
+
+#entry:selected {
+	background: #3c3836;
+	color: #fbf1c7;
+	border-color: #d79921;
+}
+
+#entry:hover {
+	background: #32302f;
+	border-color: #504945;
+}
+
+#img {
+	min-width: 28px;
+	min-height: 28px;
+	margin-right: 12px;
+}
+
+#text {
+	margin: 0;
+	padding: 0;
+	color: #ebdbb2;
+}
+
+#text:selected {
+	color: #fbf1c7;
+}

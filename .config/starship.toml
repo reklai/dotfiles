@@ -1,0 +1,26 @@
+add_newline = false
+
+format = "$directory$git_branch$git_status$cmd_duration$line_break$character"
+
+[character]
+success_symbol = "[>](bold green)"
+error_symbol = "[>](bold red)"
+
+[directory]
+style = "bold yellow"
+truncation_length = 3
+truncate_to_repo = false
+
+[git_branch]
+symbol = "git "
+style = "bold purple"
+format = "[$symbol$branch]($style) "
+
+[git_status]
+style = "bold red"
+format = "[$all_status$ahead_behind]($style) "
+
+[cmd_duration]
+min_time = 1000
+style = "bold blue"
+format = "took [$duration]($style) "

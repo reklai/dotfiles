@@ -1,0 +1,19 @@
+[Unit]
+Description=xremap for Hyprland
+After=graphical-session.target
+PartOf=graphical-session.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Environment=XDG_CURRENT_DESKTOP=Hyprland
+Environment=XDG_SESSION_TYPE=wayland
+ExecStartPre=/bin/sh -c '[ -n "$WAYLAND_DISPLAY" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]'
+ExecStart=/usr/bin/xremap --watch=device,config --no-window-logging %h/.config/xremap/config.yml
+StandardOutput=journal
+StandardError=journal
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

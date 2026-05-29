@@ -1,0 +1,9 @@
+# Packages used by this setup that are not always in official Arch repos.
+# CachyOS may provide some of these through pacman; plain Arch usually needs
+# an AUR helper such as paru or yay.
+nerd-fonts-sf-mono
+noctalia-qs
+noctalia-shell
+prettierd
+xremap-hypr-bin
+zen-browser-bin
