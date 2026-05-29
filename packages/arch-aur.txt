@@ -1,6 +1,4 @@
-# Packages used by this setup that are not always in official Arch repos.
-# CachyOS may provide some of these through pacman; plain Arch usually needs
-# an AUR helper such as paru or yay.
+# AUR packages
 nerd-fonts-sf-mono
 noctalia-qs
 noctalia-shell

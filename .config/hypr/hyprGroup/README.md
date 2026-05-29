@@ -29,8 +29,8 @@ The Container still occupies one regular Hyprland tile. Inside that tile, Hyprla
 | HyprGroup                         <   2 / 3   > |
 +-------------+----------------------------------+
 | Add         | [ editor ] [ tests ] [ docs ]    |
-| Swap        +----------------------------------+
-| Remove      | Active Window                    |
+| Remove      +----------------------------------+
+|             | Active Window                    |
 |             | tests                            |
 +-------------+----------------------------------+
 ```
@@ -54,11 +54,10 @@ The split menu opens near the cursor, stays clamped inside the monitor, uses bla
 - The Container is tracked by anchor window address, not by workspace
 - Containers are locked after Add so new windows tile beside them instead of auto-entering them
 - Add can still intentionally enter the locked Container
-- Swap
 - Remove, either moving the focused grouped window out or forgetting a one-window Container
 - Previous and next arrows
 - Active window details for the focused grouped window, or the remembered Container anchor when focus is outside any group
-- Ghostty-inspired tab rail inside the Container panel with only actual Hyprland grouped windows
+- Ghostty-inspired tab rail inside the Container panel with practical labels: Window title, app class, then `Window N`
 - Drag tabs in the Container Menu to reorder grouped windows
 - If no active or remembered Container exists, the active block says `No Active Window`
 
@@ -69,7 +68,6 @@ bin/hyprgroup --help
 bin/hyprgroup daemon
 bin/hyprgroup menu
 bin/hyprgroup add
-bin/hyprgroup swap
 bin/hyprgroup reorder 0x123456 1
 bin/hyprgroup snapshot
 bin/hyprgroup prev

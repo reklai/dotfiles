@@ -17,10 +17,14 @@ ShellRoot {
 	property string snapshotTitle: "No Active Window"
 	property bool snapshotHasContainer: false
 	property var snapshotGrouped: []
+	property var snapshotWindowDetails: ({})
 	property bool tabDragActive: false
+	property bool tabPressActive: false
+	property string pressedTabAddress: ""
 	property string draggedTabAddress: ""
 	property int draggedTabStartIndex: -1
 	property int tabDropIndex: -1
+	property real draggedTabOffsetX: 0
 	readonly property int tabWidth: 150
 	readonly property int tabGap: 2
 	readonly property int tabDragThreshold: 8
@@ -163,6 +167,7 @@ ShellRoot {
 		snapshotClass = "";
 		snapshotHasContainer = false;
 		snapshotGrouped = [];
+		snapshotWindowDetails = {};
 	}
 
 	function captureActiveWindowFromHyprland() {
@@ -180,6 +185,7 @@ ShellRoot {
 		snapshotClass = ipc && ipc.class ? ipc.class : "";
 		snapshotHasContainer = true;
 		snapshotGrouped = grouped;
+		snapshotWindowDetails = {};
 	}
 
 	function applyContainerSnapshot(snapshot) {
@@ -193,6 +199,57 @@ ShellRoot {
 		snapshotClass = snapshot.className || "";
 		snapshotHasContainer = true;
 		snapshotGrouped = copyGroupedAddresses(snapshot.grouped);
+		snapshotWindowDetails = snapshotWindowDetailsByAddress(snapshot.windows || []);
+	}
+
+	function snapshotWindowDetailsByAddress(windows) {
+		const details = {};
+
+		for (let i = 0; i < windows.length; i++) {
+			const entry = windows[i];
+
+			if (!entry || !entry.address) {
+				continue;
+			}
+
+			details[String(entry.address)] = {
+				className: entry.className || "",
+				title: entry.title || ""
+			};
+		}
+
+		return details;
+	}
+
+	function snapshotWindowDetailsForAddress(address) {
+		return snapshotWindowDetails && snapshotWindowDetails[address] ? snapshotWindowDetails[address] : null;
+	}
+
+	function meaningfulTabLabel(value) {
+		const label = String(value || "").trim();
+
+		if (label.length === 0 || label === "Untitled window" || /^0x[0-9a-fA-F]+$/.test(label)) {
+			return "";
+		}
+
+		return label;
+	}
+
+	function tabTitle(client, details, index) {
+		const clientIpc = client && client.lastIpcObject ? client.lastIpcObject : null;
+		const clientClass = clientIpc && clientIpc.class ? clientIpc.class : "";
+		const title = meaningfulTabLabel(client && client.title ? client.title : details ? details.title : "");
+		const className = meaningfulTabLabel(clientClass || (details ? details.className : ""));
+
+		if (title) {
+			return title;
+		}
+
+		if (className) {
+			return className;
+		}
+
+		return "Window " + String(index + 1);
 	}
 
 	function applySnapshotText(text) {
@@ -238,12 +295,13 @@ ShellRoot {
 			const address = snapshotGrouped[i];
 			const client = clientForAddress(address);
 			const ipc = client && client.lastIpcObject ? client.lastIpcObject : null;
+			const details = snapshotWindowDetailsForAddress(address);
 
 			entries.push({
 				address: address,
 				active: address === snapshotAddress,
-				className: ipc && ipc.class ? ipc.class : "",
-				title: client && client.title ? client.title : address
+				className: ipc && ipc.class ? ipc.class : details ? details.className : "",
+				title: tabTitle(client, details, i)
 			});
 		}
 
@@ -290,6 +348,15 @@ ShellRoot {
 		tabDropIndex = startIndex;
 	}
 
+	function beginTabPress(address) {
+		if (snapshotGrouped.length < 2) {
+			return;
+		}
+
+		tabPressActive = true;
+		pressedTabAddress = address;
+	}
+
 	function updateTabDropIndex(localX) {
 		if (!tabDragActive) {
 			return;
@@ -298,11 +365,42 @@ ShellRoot {
 		tabDropIndex = tabIndexForLocalX(localX);
 	}
 
+	function updateTabDragPosition(localX) {
+		if (!tabDragActive || draggedTabStartIndex < 0) {
+			return;
+		}
+
+		const slotWidth = tabWidth + tabGap;
+		const maxLeft = Math.max(0, (snapshotGrouped.length - 1) * slotWidth);
+		const clampedLeft = root.clamp(localX, 0, maxLeft);
+
+		draggedTabOffsetX = clampedLeft - (draggedTabStartIndex * slotWidth);
+		updateTabDropIndex(clampedLeft);
+	}
+
+	function tabDropMarkerX() {
+		if (!tabDragActive || tabDropIndex < 0) {
+			return -100;
+		}
+
+		const slotWidth = tabWidth + tabGap;
+		const targetX = tabDropIndex * slotWidth;
+
+		if (tabDropIndex > draggedTabStartIndex) {
+			return targetX + tabWidth + Math.round(tabGap / 2);
+		}
+
+		return Math.max(0, targetX - Math.round(tabGap / 2));
+	}
+
 	function cancelTabDrag() {
 		tabDragActive = false;
+		tabPressActive = false;
+		pressedTabAddress = "";
 		draggedTabAddress = "";
 		draggedTabStartIndex = -1;
 		tabDropIndex = -1;
+		draggedTabOffsetX = 0;
 	}
 
 	function moveAddressInSnapshot(address, targetIndex) {
@@ -609,12 +707,6 @@ ShellRoot {
 
 							ActionButton {
 								width: parent.width
-								label: "Swap"
-								onTriggered: root.run("swap")
-							}
-
-							ActionButton {
-								width: parent.width
 								label: "Remove"
 								danger: true
 								onTriggered: root.run("remove")
@@ -685,12 +777,17 @@ ShellRoot {
 													delegate: Item {
 														id: groupTab
 														readonly property bool dragged: root.tabDragActive && root.draggedTabAddress === modelData.address
-														readonly property bool dropTarget: root.tabDragActive && root.tabDropIndex === index && !dragged
+														readonly property bool pressed: root.tabPressActive && root.pressedTabAddress === modelData.address
 
 														width: root.tabWidth
 														height: tabRow.height
-														opacity: dragged ? 0.72 : 1
-														z: dragged || dropTarget ? 1 : 0
+														opacity: dragged ? 0.95 : 1
+														scale: dragged ? 1.04 : pressed ? 1.02 : 1
+														y: dragged ? -2 : pressed ? -1 : 0
+														z: dragged || pressed ? 2 : 0
+														transform: Translate {
+															x: groupTab.dragged ? root.draggedTabOffsetX : 0
+														}
 
 														Rectangle {
 															anchors.fill: parent
@@ -698,10 +795,34 @@ ShellRoot {
 															anchors.leftMargin: 1
 															anchors.rightMargin: 1
 															anchors.bottomMargin: 0
-															color: groupTab.dropTarget ? "#34363d" : modelData.active ? "#3d3e44" : tabMouse.containsMouse ? "#303137" : "#26272d"
-															border.color: groupTab.dropTarget ? "#d4d4d8" : modelData.active ? "#5a5c64" : "#3d3f47"
-															border.width: 1
+															color: groupTab.dragged ? "#4a4234" : groupTab.pressed ? "#3d372d" : modelData.active ? "#3d3e44" : "#26272d"
+															border.color: groupTab.dragged ? "#d8b46a" : groupTab.pressed ? "#c59f5a" : modelData.active ? "#5a5c64" : "#3d3f47"
+															border.width: groupTab.dragged || groupTab.pressed ? 2 : 1
 															radius: modelData.active ? 7 : 5
+														}
+
+														Item {
+															id: tabGrip
+															width: 12
+															height: 18
+															anchors.left: parent.left
+															anchors.leftMargin: 10
+															anchors.verticalCenter: parent.verticalCenter
+															visible: root.snapshotGrouped.length > 1
+															opacity: groupTab.dragged || groupTab.pressed ? 1 : 0.42
+
+															Repeater {
+																model: 6
+
+																Rectangle {
+																	width: 2
+																	height: 2
+																	x: (index % 2) * 6
+																	y: Math.floor(index / 2) * 6
+																	radius: 1
+																	color: groupTab.dragged || groupTab.pressed ? "#f3d28b" : "#a1a1aa"
+																}
+															}
 														}
 
 														Rectangle {
@@ -728,7 +849,7 @@ ShellRoot {
 														Text {
 															anchors.left: parent.left
 															anchors.right: parent.right
-															anchors.leftMargin: 14
+															anchors.leftMargin: root.snapshotGrouped.length > 1 ? 30 : 14
 															anchors.rightMargin: 14
 															anchors.verticalCenter: parent.verticalCenter
 															text: modelData.title
@@ -745,21 +866,33 @@ ShellRoot {
 															property real pressX: 0
 															property real pressY: 0
 															property bool dragStarted: false
+															property bool pointerDown: false
 
 															anchors.fill: parent
-															hoverEnabled: true
+															hoverEnabled: false
 															preventStealing: true
-															cursorShape: groupTab.dragged ? Qt.ClosedHandCursor : Qt.PointingHandCursor
+															cursorShape: groupTab.dragged || groupTab.pressed ? Qt.ClosedHandCursor : Qt.PointingHandCursor
 
 															onPressed: mouse => {
+																if (mouse.button !== Qt.LeftButton) {
+																	return;
+																}
+
 																pressX = mouse.x;
 																pressY = mouse.y;
+																pointerDown = true;
 																dragStarted = false;
+																root.beginTabPress(modelData.address);
 															}
 
 															onPositionChanged: mouse => {
+																if (!pointerDown || (mouse.buttons & Qt.LeftButton) === 0) {
+																	return;
+																}
+
 																const dx = Math.abs(mouse.x - pressX);
 																const dy = Math.abs(mouse.y - pressY);
+																const point = tabMouse.mapToItem(tabRow, mouse.x, mouse.y);
 
 																if (!dragStarted && (dx > root.tabDragThreshold || dy > root.tabDragThreshold)) {
 																	dragStarted = true;
@@ -767,27 +900,47 @@ ShellRoot {
 																}
 
 																if (root.tabDragActive && root.draggedTabAddress === modelData.address) {
-																	const point = tabMouse.mapToItem(tabRow, mouse.x, mouse.y);
-																	root.updateTabDropIndex(point.x - pressX);
+																	root.updateTabDragPosition(point.x - pressX);
 																}
 															}
 
-															onReleased: {
+															onReleased: mouse => {
+																if (mouse.button !== Qt.LeftButton && !pointerDown) {
+																	return;
+																}
+
+																pointerDown = false;
+
 																if (root.tabDragActive && root.draggedTabAddress === modelData.address) {
 																	root.finishTabDrag(modelData.address);
 																} else {
+																	root.cancelTabDrag();
 																	root.run("jump", modelData.address, true);
 																}
 															}
 
 															onCanceled: {
-																if (root.draggedTabAddress === modelData.address) {
+																pointerDown = false;
+
+																if (root.draggedTabAddress === modelData.address || root.pressedTabAddress === modelData.address) {
 																	root.cancelTabDrag();
 																}
 															}
 														}
 													}
 												}
+											}
+
+											Rectangle {
+												id: tabDropMarker
+												visible: root.tabDragActive && root.tabDropIndex >= 0
+												x: root.tabDropMarkerX()
+												y: 5
+												width: 3
+												height: tabRow.height - 10
+												color: "#d8b46a"
+												radius: 1
+												z: 3
 											}
 										}
 									}

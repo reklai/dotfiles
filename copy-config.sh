@@ -9,7 +9,7 @@ timestamp=$(date +%Y%m%d-%H%M%S)
 backup_dir="$backup_root/$timestamp"
 
 usage() {
-	printf '%s\n' "usage: ./link-dotfiles.sh [--dry-run]"
+	printf '%s\n' "usage: ./copy-config.sh [--dry-run]"
 }
 
 dry_run=0
@@ -43,25 +43,28 @@ run() {
 	fi
 }
 
-link_entry() {
-	name=$1
-	src="$src_config/$name"
-	dest="$dest_config/$name"
+copy_file() {
+	src=$1
+	rel=${src#"$src_config"/}
+	dest="$dest_config/$rel"
+	dest_parent=${dest%/*}
+	backup_path="$backup_dir/$rel"
+	backup_parent=${backup_path%/*}
 
-	if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
-		say "already linked: $dest"
+	if [ -f "$dest" ] && cmp -s "$src" "$dest"; then
+		say "already copied: $dest"
 		return 0
 	fi
 
 	if [ -e "$dest" ] || [ -L "$dest" ]; then
-		run mkdir -p "$backup_dir"
-		say "backup: $dest -> $backup_dir/$name"
-		run mv "$dest" "$backup_dir/$name"
+		run mkdir -p "$backup_parent"
+		say "backup: $dest -> $backup_path"
+		run mv "$dest" "$backup_path"
 	fi
 
-	run mkdir -p "$dest_config"
-	say "link: $dest -> $src"
-	run ln -s "$src" "$dest"
+	run mkdir -p "$dest_parent"
+	say "copy: $src -> $dest"
+	run cp -a "$src" "$dest"
 }
 
 [ -d "$src_config" ] || {
@@ -69,10 +72,8 @@ link_entry() {
 	exit 1
 }
 
-for entry in "$src_config"/* "$src_config"/.[!.]* "$src_config"/..?*; do
-	[ -e "$entry" ] || [ -L "$entry" ] || continue
-	name=${entry##*/}
-	link_entry "$name"
+find "$src_config" \( -type f -o -type l \) -print | sort | while IFS= read -r src; do
+	copy_file "$src"
 done
 
 say "done"

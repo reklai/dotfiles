@@ -240,7 +240,7 @@ test_snapshot_uses_remembered_container_when_focus_is_outside_group() {
 
 	output="$(bash "$subject" snapshot)"
 
-	if [[ "$output" != '{"hasContainer":true,"address":"0x111","title":"Editor","className":"code","grouped":["0x111","0x222"],"source":"remembered"}' ]]; then
+	if [[ "$output" != '{"hasContainer":true,"address":"0x111","title":"Editor","className":"code","grouped":["0x111","0x222"],"windows":[{"address":"0x111","title":"Editor","className":"code"},{"address":"0x222","title":"Tests","className":"foot"}],"source":"remembered"}' ]]; then
 		printf 'Unexpected snapshot:\n%s\n' "$output" >&2
 		return 1
 	fi

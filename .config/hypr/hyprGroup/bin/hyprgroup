@@ -5,14 +5,13 @@ app_name="HyprGroup"
 
 usage() {
 	printf '%s\n' \
-		"Usage: hyprgroup [menu|daemon|add|remove|swap|reorder|snapshot|jump|next|prev]" \
+		"Usage: hyprgroup [menu|daemon|add|remove|reorder|snapshot|jump|next|prev]" \
 		"" \
 		"Actions:" \
 		"  menu       Toggle the Quickshell action menu" \
 		"  daemon     Start the persistent Quickshell menu process" \
 		"  add        Add the active window to the Container if needed" \
 		"  remove     Remove the active window from its group" \
-		"  swap       Swap the active group window with the next group window" \
 		"  reorder    Move a group window to a zero-based Container index" \
 		"  snapshot   Print the active or remembered Container state as JSON" \
 		"  jump       Focus a group window by address" \
@@ -173,7 +172,7 @@ active_window_remove_state() {
 }
 
 empty_snapshot() {
-	printf '%s\n' '{"hasContainer":false,"address":"","title":"No Active Window","className":"","grouped":[],"source":"none"}'
+	printf '%s\n' '{"hasContainer":false,"address":"","title":"No Active Window","className":"","grouped":[],"windows":[],"source":"none"}'
 }
 
 container_snapshot() {
@@ -204,13 +203,29 @@ container_snapshot() {
 			dedupe |
 			map(select(. == $address or (. as $candidate | any($clients[]?; .address == $candidate))));
 
-		def snapshot($client; $grouped; $source):
+		def window_title($client):
+			(($client.title // "") | if . == "" then "Untitled window" else . end);
+
+		def window_details($grouped; $clients; $primary):
+			[
+				$grouped[] as $address |
+				(($clients | map(select(.address == $address)) | .[0]) //
+					(if (($primary.address // "") == $address) then $primary else null end)) as $client |
+				{
+					address: $address,
+					title: window_title($client),
+					className: ($client.class // "")
+				}
+			];
+
+		def snapshot($client; $grouped; $source; $clients):
 			{
 				hasContainer: true,
 				address: ($client.address // ""),
-				title: (($client.title // "") | if . == "" then "Untitled window" else . end),
+				title: window_title($client),
 				className: ($client.class // ""),
 				grouped: $grouped,
+				windows: window_details($grouped; $clients; $client),
 				source: $source
 			};
 
@@ -218,13 +233,13 @@ container_snapshot() {
 		(.[1] // []) as $clients |
 		([($active.grouped // [])[]? | tostring] | normalize_group(.; ($active.address // ""); $clients)) as $active_grouped |
 		if (($active.address // "") != "" and ($active_grouped | length) > 1) then
-			snapshot($active; $active_grouped; "active")
+			snapshot($active; $active_grouped; "active"; $clients)
 		else
 			($clients | map(select(.address == $anchor)) | .[0] // null) as $anchor_client |
 			if ($anchor_client != null) then
 				([($anchor_client.grouped // [])[]? | tostring] | normalize_group(.; $anchor; $clients)) as $remembered_grouped |
 				if ($remembered_grouped | length) > 0 then
-					snapshot($anchor_client; $remembered_grouped; "remembered")
+					snapshot($anchor_client; $remembered_grouped; "remembered"; $clients)
 				else
 					{
 						hasContainer: false,
@@ -232,6 +247,7 @@ container_snapshot() {
 						title: "No Active Window",
 						className: "",
 						grouped: [],
+						windows: [],
 						source: "none"
 					}
 				end
@@ -242,6 +258,7 @@ container_snapshot() {
 					title: "No Active Window",
 					className: "",
 					grouped: [],
+					windows: [],
 					source: "none"
 				}
 			end
@@ -465,10 +482,6 @@ remove_window() {
 	return 0
 }
 
-swap_window() {
-	run_dispatch 'hl.dsp.group.move_window({ forward = true })'
-}
-
 move_group_window() {
 	local address="$1"
 	local forward="$2"
@@ -564,7 +577,6 @@ wofi_menu() {
 	choice="$(
 		printf '%s\n' \
 			"Add" \
-			"Swap" \
 			"Remove" \
 			"Prev" \
 			"Next" |
@@ -573,7 +585,6 @@ wofi_menu() {
 
 	case "$choice" in
 		"Add") add_to_group ;;
-		"Swap") swap_window ;;
 		"Remove") remove_window ;;
 		"Prev") prev_window ;;
 		"Next") next_window ;;
@@ -656,7 +667,6 @@ main() {
 		menu) menu ;;
 		daemon) daemon ;;
 		add) add_to_group ;;
-		swap) swap_window ;;
 		reorder) reorder_window "${2:-}" "${3:-}" ;;
 		snapshot) container_snapshot ;;
 		jump) jump_window "${2:-}" ;;

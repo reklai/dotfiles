@@ -1,10 +1,4 @@
-# dotfiles
-
-Personal `.config` dotfiles for a CachyOS/Arch workstation.
-
-## Fresh Arch Machine
-
-From a fresh machine:
+Setup fresh Arch machine:
 
 ```sh
 git clone <your-repo-url> ~/dotfiles
@@ -12,47 +6,122 @@ cd ~/dotfiles
 ./setup-arch.sh
 ```
 
-`setup-arch.sh` installs packages from:
+`setup-arch.sh` installs pacman packages from:
 
-- `packages/arch-pacman.txt` with `sudo pacman -Syu --needed`
-- `packages/arch-aur.txt` with `paru` or `yay`, if one is installed
+- `packages/arch-pacman.txt`
 
-Then it runs `./link-dotfiles.sh`.
+Then it checks for an AUR helper:
+
+- `paru`
+- `yay`
+
+If one exists, it uses it. If none exists, it asks which one to install.
+
+AUR packages come from:
+
+- `packages/arch-aur.txt`
+
+Then it runs:
+
+```sh
+./link-config.sh
+```
+
+Official packages installed:
+
+```text
+base-devel bash-completion git less openssh rsync sudo which wget
+bat eza fd fzf jq ripgrep starship tmux tree tree-sitter-cli
+brightnessctl code dolphin ghostty grim hyprland libnotify obs-studio
+pavucontrol pipewire pipewire-alsa pipewire-pulse playerctl slurp uwsm
+wireplumber wl-clipboard wofi xdg-desktop-portal xdg-desktop-portal-hyprland
+noto-fonts noto-fonts-cjk noto-fonts-emoji ttf-dejavu
+ttf-jetbrains-mono-nerd ttf-meslo-nerd
+bear clang cmake eslint_d gdb go gopls lldb lua-language-server neovim ninja
+nodejs npm pyright python python-pip python-pynvim ruff rustup stylua zig
+```
+
+AUR packages installed:
+
+```text
+nerd-fonts-sf-mono noctalia-qs noctalia-shell prettierd xremap-hypr-bin
+zen-browser-bin
+```
+
+For noninteractive setup:
+
+```sh
+./setup-arch.sh --aur-helper paru
+./setup-arch.sh --aur-helper yay
+```
+
+Useful preview:
+
+```sh
+./setup-arch.sh --dry-run --aur-helper paru
+```
 
 ## Dotfile Linking
 
-`link-dotfiles.sh` links each top-level entry in this repo's `.config` directory into
-`~/.config`.
+Prefer symlink over copy:
 
-For example, after `./link-dotfiles.sh`, this repo's:
-
-```text
-~/dotfiles/.config/nvim
+```sh
+./link-config.sh
 ```
 
-is linked at:
+Links tracked files from:
 
 ```text
-~/.config/nvim
+~/dotfiles/.config
 ```
 
-This is a symlink, not a copy. There is no background monitor or daemon. Changes
-made through `~/.config/nvim` are changes to the files in `~/dotfiles`, so Git
-will see them immediately. Git still does not commit or push anything
-automatically.
-
-If a destination already exists and is not already the right symlink, it is moved
 to:
+
+```text
+~/.config
+```
+
+Example:
+
+```text
+~/dotfiles/.config/nvim/init.lua -> ~/.config/nvim/init.lua
+```
+
+Symlink means edits through `~/.config` are edits inside `~/dotfiles`.
+
+No monitor. No daemon. Git sees changes, but nothing commits automatically.
+
+Existing files get backed up to:
 
 ```text
 ~/.local/state/dotfiles/backup/<timestamp>/
 ```
 
-Preview changes first:
+Preview first:
 
 ```sh
-./link-dotfiles.sh --dry-run
-./setup-arch.sh --dry-run
+./link-config.sh --dry-run
+./setup-arch.sh --dry-run --aur-helper paru
+```
+
+## Plain Copy
+
+Prefer real copied files over symlinks:
+
+```sh
+./copy-config.sh
+```
+
+Copies:
+
+```text
+~/dotfiles/.config
+```
+
+to:
+
+```text
+~/.config
 ```
 
 ## Included
@@ -65,12 +134,3 @@ Preview changes first:
 - `systemd/user`
 - `wofi`
 - `xremap`
-
-## Intentionally Not Tracked
-
-- Browser profile data
-- `dconf` binary state
-- PulseAudio/PipeWire cookies
-- Session restore files
-- `node_modules`
-- Nested `.git` directories

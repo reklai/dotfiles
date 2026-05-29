@@ -28,7 +28,6 @@ The public mental model is that one normal tiled window slot can hold related wi
 ## Menu Actions
 
 - `Add`: add the active window to the Container only when it is not already in one.
-- `Swap`: move the active group window forward in the group order.
 - `Remove`: remove the active window from its Container, or forget a one-window Container.
 - `Prev` and `Next`: header arrow controls for moving through windows in the active group.
 
@@ -37,7 +36,7 @@ The public mental model is that one normal tiled window slot can hold related wi
 - The Window List is rendered under the active window block in the right pane.
 - Each row represents an actual Hyprland grouped window from the active window's native group.
 - The remembered Container anchor is command state only; it must not create a list row by itself.
-- Group windows are shown as a Ghostty-inspired horizontal tab rail inside the same Container panel as the active window details: dark gray chrome, soft active tab, clear separators, centered titles, and a thin neutral active edge.
+- Group windows are shown as a Ghostty-inspired horizontal tab rail inside the same Container panel as the active window details: dark gray chrome, soft active tab, clear separators, centered titles, and a thin neutral active edge. Tab labels prefer Window title, then app class, then `Window N`; raw addresses are not shown as tab labels.
 - Dragging a tab inside the Container Menu reorders the grouped Window through `bin/hyprgroup reorder ADDRESS INDEX`; it does not change the native Hyprland groupbar itself.
 - Clicking a row focuses that grouped window and keeps the menu open.
 - The active grouped window is highlighted with neutral contrast.
@@ -54,9 +53,8 @@ The public mental model is that one normal tiled window slot can hold related wi
 - `bin/hyprgroup menu`: toggles the Quickshell menu and passes `hyprctl cursorpos` into the IPC call.
 - `bin/hyprgroup daemon`: starts the persistent Quickshell process if it is not already running.
 - `bin/hyprgroup add`: checks the active window first. If the window is already in the Container, it does nothing. Otherwise it unsets fullscreen/floating state, brings the remembered Container anchor to the active workspace when needed, moves the active window into the Container when possible, and only creates a new Container when none exists. A runtime state file stores the single Container anchor address so the Container follows the real window/group identity instead of being tied to a workspace. After creating or moving into a group, it locks the active group so future windows tile beside the Container instead of auto-entering it. HyprGroup sets `binds.ignore_group_lock = true` so scripted Add can still enter the locked Container intentionally.
-- `bin/hyprgroup swap`: dispatches `hl.dsp.group.move_window({ forward = true })`.
 - `bin/hyprgroup reorder ADDRESS INDEX`: moves the grouped Window at `ADDRESS` forward or backward until it reaches the zero-based Container `INDEX`.
-- `bin/hyprgroup snapshot`: prints JSON for the focused Container when focus is grouped, otherwise for the remembered Container anchor when it still exists.
+- `bin/hyprgroup snapshot`: prints JSON for the focused Container when focus is grouped, otherwise for the remembered Container anchor when it still exists. It includes per-Window title and class metadata for practical tab labels.
 - `bin/hyprgroup remove`: if the active window is in a native Hyprland group, dispatches `hl.dsp.window.move({ out_of_group = true })` and remembers another grouped window as the Container anchor. If the active window is only the remembered one-window Container, it clears that runtime state instead of dispatching a no-op. If the active window is outside the Container, it does nothing.
 - `bin/hyprgroup jump ADDRESS`: dispatches `hl.dsp.focus({ window = "address:ADDRESS" })`.
 - `bin/hyprgroup next` and `bin/hyprgroup prev`: move through windows in the active group.
