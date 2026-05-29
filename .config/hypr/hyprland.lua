@@ -9,7 +9,8 @@ local clipboard_manager = "qs -c noctalia-shell ipc call launcher clipboard"
 local main_mod = "SUPER"
 local home = assert(os.getenv("HOME"), "HOME is not set")
 local screenshot_region = home .. "/.config/hypr/bin/hypr-screenshot-region"
-local hyprgroup = dofile(home .. "/.config/hypr/hyprGroup/lua/hyprgroup.lua")
+local hyprGroup = "enable"
+local hyprgroup_path = home .. "/code/personal/hypr/hyprGroup/lua/hyprgroup.lua"
 
 local function command_succeeds(command)
 	local ok = os.execute(command .. " >/dev/null 2>&1")
@@ -30,6 +31,16 @@ local function nvidia_available()
 	return path_exists("/proc/driver/nvidia/version")
 		or path_exists("/dev/nvidiactl")
 		or command_succeeds("nvidia-smi -L")
+end
+
+local function setup_hyprgroup()
+	if hyprGroup ~= "enable" or not path_exists(hyprgroup_path) then
+		return
+	end
+
+	dofile(hyprgroup_path).setup({
+		main_mod = main_mod,
+	})
 end
 
 local has_nvidia = nvidia_available()
@@ -257,10 +268,7 @@ hl.bind(main_mod .. " + SHIFT + M", hl.dsp.window.kill())
 hl.bind(main_mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 hl.bind(main_mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
-hyprgroup.setup({
-	main_mod = main_mod,
-	script = os.getenv("HOME") .. "/.config/hypr/hyprGroup/bin/hyprgroup",
-})
+setup_hyprgroup()
 
 local workspace_keys = { "Q", "W", "E", "R" }
 for workspace, key in ipairs(workspace_keys) do
