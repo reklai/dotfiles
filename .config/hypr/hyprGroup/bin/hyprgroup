@@ -161,6 +161,16 @@ forget_container_anchor() {
 	: >"$state"
 }
 
+forget_stale_container_anchor() {
+	local address
+
+	address="$(stored_container_anchor_address || true)"
+
+	if [[ "$address" =~ ^0x[0-9a-fA-F]+$ ]] && ! client_exists "$address"; then
+		forget_container_anchor || true
+	fi
+}
+
 active_window_remove_state() {
 	hyprctl activewindow -j 2>/dev/null |
 		jq -r '
@@ -533,8 +543,10 @@ focus_visible_container_for_cycle() {
 	local address
 
 	if ! command -v jq >/dev/null 2>&1; then
-		return 0
+		return 1
 	fi
+
+	forget_stale_container_anchor
 
 	if active_window_in_container; then
 		return 0
@@ -550,13 +562,16 @@ focus_visible_container_for_cycle() {
 
 	if [[ "$address" =~ ^0x[0-9a-fA-F]+$ ]]; then
 		run_dispatch "hl.dsp.focus({ window = \"address:${address}\" })" || return 1
+		return 0
 	fi
+
+	return 1
 }
 
 cycle_window() {
 	local direction="$1"
 
-	focus_visible_container_for_cycle || return 1
+	focus_visible_container_for_cycle || return 0
 	run_dispatch "hl.dsp.group.${direction}({})"
 }
 

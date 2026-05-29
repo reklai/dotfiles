@@ -478,6 +478,32 @@ test_prev_focuses_remembered_container_when_focus_is_outside_group() {
 	assert_no_notifications
 }
 
+test_next_with_stale_remembered_container_cleans_anchor_and_does_nothing() {
+	reset_logs
+	write_active '{"address":"0x999","title":"Loose terminal","class":"foot","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '[{"address":"0x999","title":"Loose terminal","class":"foot","workspace":{"id":1},"grouped":[]}]\n' >"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" next
+
+	assert_file_equals "$dispatch_log" ""
+	assert_file_equals "$state_file" ""
+	assert_no_notifications
+}
+
+test_prev_without_remembered_container_does_nothing() {
+	reset_logs
+	write_active '{"address":"0x999","title":"Loose terminal","class":"foot","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '[{"address":"0x999","title":"Loose terminal","class":"foot","workspace":{"id":1},"grouped":[]}]\n' >"$clients_json"
+	: >"$state_file"
+
+	bash "$subject" prev
+
+	assert_file_equals "$dispatch_log" ""
+	assert_file_equals "$state_file" ""
+	assert_no_notifications
+}
+
 test_snapshot_uses_remembered_container_when_focus_is_outside_group() {
 	local output
 
@@ -548,6 +574,8 @@ test_close_one_window_container_forgets_anchor
 test_close_rejects_window_outside_container
 test_next_focuses_remembered_container_when_focus_is_outside_group
 test_prev_focuses_remembered_container_when_focus_is_outside_group
+test_next_with_stale_remembered_container_cleans_anchor_and_does_nothing
+test_prev_without_remembered_container_does_nothing
 test_snapshot_uses_remembered_container_when_focus_is_outside_group
 test_snapshot_uses_recent_remembered_group_member_as_active_window
 

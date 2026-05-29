@@ -2,7 +2,7 @@
 
 Native Hyprland groups, controlled like tabs.
 
-HyprGroup makes one normal tiled window slot behave like a tabbed Container for related windows. Hyprland remains the real container layer; this project adds focused keybinds, a fast Quickshell Container Menu, and a Ghostty-inspired tab rail for the Active Container.
+HyprGroup makes one normal tiled window slot behave like a tabbed Container for related windows. Hyprland remains the real container layer; this project adds focused keybinds, a fast Quickshell Container Menu, and a Ghostty-inspired vertical Container List for the Active Container.
 
 Use it when a task needs several windows, but not several workspace slots. For example, keep an editor, test terminal, and docs window inside one Container, then cycle between them while the rest of the desktop stays fully tiled.
 
@@ -22,17 +22,20 @@ Use it when a task needs several windows, but not several workspace slots. For e
 
 The Container still occupies one regular Hyprland tile. Inside that tile, Hyprland's native grouped windows are navigated like tabs.
 
-`SUPER + G` opens the cursor-near Container Menu for controlling the Active Container:
+`SUPER + G` opens the cursor-near Container Menu for controlling the Active Container. The left side is command-oriented; the right side shows the selected Window and a vertical, scrollable list of Container Windows.
 
 ```text
-+------------------------------------------------+
-| HyprGroup                         <   2 / 3   > |
-+-------------+----------------------------------+
-| Add         | [ editor ] [ tests ] [ docs ]    |
-| Remove      +----------------------------------+
-|             | Active Window                    |
-|             | tests                            |
-+-------------+----------------------------------+
++----------------------------------------------------------------+
+| HyprGroup                                      <   >   X        |
++--------------------------+-------------------------------------+
+| Add to Container         | Active Container              2 / 3 |
+| Move Container Here      | tests                               |
+| Remove from Container    | ghostty                             |
+| Close Window Inside...   +-------------------------------------+
+|                          | editor                              |
+|                          | tests                               |
+|                          | docs                                |
++--------------------------+-------------------------------------+
 ```
 
 The menu only describes the Active Container. If focus is outside any group, HyprGroup falls back to the remembered Container, even when that Container is on another workspace. It is not a launcher, workspace switcher, or list of every open window.
