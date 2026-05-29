@@ -179,6 +179,59 @@ test_remove_rejects_selected_window_outside_container() {
 	assert_file_equals "$notify_log" "HyprGroup Window is not in the Container."
 }
 
+test_select_group_window_restores_original_focus_when_focus_is_outside_container() {
+	reset_logs
+	write_active '{"address":"0x999","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '%s\n' \
+		'[{"address":"0x111","workspace":{"id":2},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x222","workspace":{"id":2},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x999","workspace":{"id":1},"grouped":[]}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" select 0x222
+
+	assert_file_equals "$dispatch_log" $'hl.dsp.focus({ window = "address:0x222" })\nhl.dsp.focus({ window = "address:0x999" })'
+	assert_file_equals "$state_file" $'anchor\t0x111'
+	assert_no_notifications
+}
+
+test_select_group_window_keeps_focus_when_active_is_same_container() {
+	reset_logs
+	write_active '{"address":"0x111","monitor":1,"workspace":{"id":1},"grouped":["0x111","0x222"]}'
+	printf '%s\n' \
+		'[{"address":"0x111","workspace":{"id":1},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x222","workspace":{"id":1},"grouped":["0x111","0x222"]}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" select 0x222
+
+	assert_file_equals "$dispatch_log" 'hl.dsp.focus({ window = "address:0x222" })'
+	assert_file_equals "$state_file" $'anchor\t0x111'
+	assert_no_notifications
+}
+
+test_select_rejects_window_outside_container() {
+	reset_logs
+	write_active '{"address":"0xaaa","monitor":1,"workspace":{"id":1},"grouped":["0xaaa","0xbbb"]}'
+	printf '%s\n' \
+		'[{"address":"0xaaa","workspace":{"id":1},"grouped":["0xaaa","0xbbb"]},' \
+		'{"address":"0xbbb","workspace":{"id":1},"grouped":["0xaaa","0xbbb"]},' \
+		'{"address":"0x999","workspace":{"id":1},"grouped":[]}]' \
+		>"$clients_json"
+	printf 'anchor\t0xaaa\n' >"$state_file"
+
+	if bash "$subject" select 0x999; then
+		printf 'Expected select outside Container to fail.\n' >&2
+		return 1
+	fi
+
+	assert_file_equals "$dispatch_log" ""
+	assert_file_equals "$state_file" $'anchor\t0xaaa'
+	assert_file_equals "$notify_log" "HyprGroup Window is not in the Container."
+}
+
 test_add_remembered_one_window_container_is_noop() {
 	reset_logs
 	write_active '{"address":"0xddd","monitor":1,"workspace":{"id":1},"grouped":[]}'
@@ -220,6 +273,56 @@ test_add_brings_global_container_to_active_workspace() {
 	assert_file_equals "$dispatch_log" $'hl.dsp.window.fullscreen({ action = "unset" })\nhl.dsp.window.float({ action = "off" })\nhl.dsp.focus({ window = "address:0x111" })\nhl.dsp.window.move({ workspace = 2 })\nhl.dsp.focus({ window = "address:0x222" })\nhl.dsp.window.move({ into_or_create_group = "l" })\nhl.dsp.group.lock_active({ action = "lock" })'
 	assert_file_equals "$state_file" $'anchor\t0x222'
 	assert_no_notifications
+}
+
+test_move_container_here_moves_remembered_container_to_active_workspace() {
+	reset_logs
+	write_active '{"address":"0x999","monitor":1,"workspace":{"id":2},"grouped":[]}'
+	printf '%s\n' \
+		'[{"address":"0x111","workspace":{"id":1},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x222","workspace":{"id":1},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x999","workspace":{"id":2},"grouped":[]}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" move-here
+
+	assert_file_equals "$dispatch_log" $'hl.dsp.focus({ window = "address:0x111" })\nhl.dsp.window.move({ workspace = 2 })\nhl.dsp.focus({ window = "address:0x999" })'
+	assert_file_equals "$state_file" $'anchor\t0x111'
+	assert_no_notifications
+}
+
+test_move_container_here_is_noop_when_container_is_already_here() {
+	reset_logs
+	write_active '{"address":"0x999","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '%s\n' \
+		'[{"address":"0x111","workspace":{"id":1},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x222","workspace":{"id":1},"grouped":["0x111","0x222"]},' \
+		'{"address":"0x999","workspace":{"id":1},"grouped":[]}]' \
+		>"$clients_json"
+	printf 'anchor\t0x111\n' >"$state_file"
+
+	bash "$subject" move-here
+
+	assert_file_equals "$dispatch_log" ""
+	assert_file_equals "$state_file" $'anchor\t0x111'
+	assert_no_notifications
+}
+
+test_move_container_here_rejects_without_remembered_container() {
+	reset_logs
+	write_active '{"address":"0x999","monitor":1,"workspace":{"id":1},"grouped":[]}'
+	printf '[{"address":"0x999","workspace":{"id":1},"grouped":[]}]\n' >"$clients_json"
+	: >"$state_file"
+
+	if bash "$subject" move-here; then
+		printf 'Expected move-here without remembered Container to fail.\n' >&2
+		return 1
+	fi
+
+	assert_file_equals "$dispatch_log" ""
+	assert_file_equals "$state_file" ""
+	assert_file_equals "$notify_log" "HyprGroup No Container to move."
 }
 
 test_reorder_moves_group_window_forward_to_index() {
@@ -426,9 +529,15 @@ test_remove_native_group_remembers_remaining_window
 test_remove_outside_container_is_noop
 test_remove_selected_remembered_anchor_remembers_remaining_window
 test_remove_rejects_selected_window_outside_container
+test_select_group_window_restores_original_focus_when_focus_is_outside_container
+test_select_group_window_keeps_focus_when_active_is_same_container
+test_select_rejects_window_outside_container
 test_add_remembered_one_window_container_is_noop
 test_add_new_container_remembers_global_anchor
 test_add_brings_global_container_to_active_workspace
+test_move_container_here_moves_remembered_container_to_active_workspace
+test_move_container_here_is_noop_when_container_is_already_here
+test_move_container_here_rejects_without_remembered_container
 test_reorder_moves_group_window_forward_to_index
 test_reorder_moves_group_window_backward_to_index
 test_reorder_single_window_container_is_noop

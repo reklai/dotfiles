@@ -5,14 +5,16 @@ app_name="HyprGroup"
 
 usage() {
 	printf '%s\n' \
-		"Usage: hyprgroup [menu|daemon|add|remove|close|reorder|snapshot|jump|next|prev]" \
+		"Usage: hyprgroup [menu|daemon|add|move-here|remove|close|select|reorder|snapshot|jump|next|prev]" \
 		"" \
 		"Actions:" \
 		"  menu       Toggle the Quickshell action menu" \
 		"  daemon     Start the persistent Quickshell menu process" \
 		"  add        Add the active window to the Container if needed" \
+		"  move-here  Move the remembered Container to the active workspace" \
 		"  remove     Remove the active window from its group" \
 		"  close      Close the active or selected Container window" \
+		"  select     Select a Container window without staying focused there" \
 		"  reorder    Move a group window to a zero-based Container index" \
 		"  snapshot   Print the active or remembered Container state as JSON" \
 		"  jump       Focus a group window by address" \
@@ -496,6 +498,36 @@ add_to_group() {
 	return 1
 }
 
+move_container_here() {
+	local active_address
+	local container_address
+	local target_workspace
+
+	if ! command -v jq >/dev/null 2>&1; then
+		notify "Could not inspect the Container."
+		return 1
+	fi
+
+	active_address="$(active_window_address || true)"
+	target_workspace="$(active_workspace_id || true)"
+	container_address="$(container_anchor_address || true)"
+
+	if [[ ! "$active_address" =~ ^0x[0-9a-fA-F]+$ || ! "$target_workspace" =~ ^-?[0-9]+$ ]]; then
+		notify "Could not inspect the active window."
+		return 1
+	fi
+
+	if [[ ! "$container_address" =~ ^0x[0-9a-fA-F]+$ ]]; then
+		notify "No Container to move."
+		return 1
+	fi
+
+	bring_container_to_active_workspace || {
+		notify "Could not move the Container."
+		return 1
+	}
+}
+
 focus_visible_container_for_cycle() {
 	local state
 	local address
@@ -634,6 +666,46 @@ focus_window_if_needed() {
 	fi
 
 	run_dispatch "hl.dsp.focus({ window = \"address:${address}\" })"
+}
+
+select_window() {
+	local address="${1:-}"
+	local original_address
+	local restore_original=false
+
+	if [[ ! "$address" =~ ^0x[0-9a-fA-F]+$ ]]; then
+		notify "Invalid window address."
+		return 1
+	fi
+
+	if ! command -v jq >/dev/null 2>&1; then
+		notify "Could not inspect the Container."
+		return 1
+	fi
+
+	if ! client_exists "$address"; then
+		notify "Window is not available."
+		return 1
+	fi
+
+	if ! container_has_window "$address"; then
+		notify "Window is not in the Container."
+		return 1
+	fi
+
+	original_address="$(active_window_address || true)"
+
+	if [[ "$original_address" =~ ^0x[0-9a-fA-F]+$ && "$original_address" != "$address" ]]; then
+		if ! group_contains_address "$address" "$original_address"; then
+			restore_original=true
+		fi
+	fi
+
+	run_dispatch "hl.dsp.focus({ window = \"address:${address}\" })" || return 1
+
+	if [[ "$restore_original" == true ]] && client_exists "$original_address"; then
+		run_dispatch "hl.dsp.focus({ window = \"address:${original_address}\" })" || true
+	fi
 }
 
 close_window() {
@@ -867,6 +939,7 @@ wofi_menu() {
 	choice="$(
 		printf '%s\n' \
 			"Add to Container" \
+			"Move Container Here" \
 			"Remove from Container" \
 			"Close Window Inside Container" \
 			"Prev" \
@@ -876,6 +949,7 @@ wofi_menu() {
 
 	case "$choice" in
 		"Add to Container") add_to_group ;;
+		"Move Container Here") move_container_here ;;
 		"Remove from Container") remove_window ;;
 		"Close Window Inside Container") close_window ;;
 		"Prev") prev_window ;;
@@ -959,7 +1033,9 @@ main() {
 		menu) menu ;;
 		daemon) daemon ;;
 		add) add_to_group ;;
+		move-here) move_container_here ;;
 		close) close_window "${2:-}" ;;
+		select) select_window "${2:-}" ;;
 		reorder) reorder_window "${2:-}" "${3:-}" ;;
 		snapshot) container_snapshot ;;
 		jump) jump_window "${2:-}" ;;

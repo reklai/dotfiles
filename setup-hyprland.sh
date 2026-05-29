@@ -4,6 +4,8 @@ set -eu
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 pacman_file="$repo_dir/packages/hyprland-pacman.txt"
 aur_file="$repo_dir/packages/hyprland-aur.txt"
+user_services="xremap.service noctalia.service polkit-agent.service"
+session_env_names="WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE DISPLAY DBUS_SESSION_BUS_ADDRESS"
 
 dry_run=0
 skip_aur=0
@@ -208,8 +210,53 @@ enable_system_services() {
 
 enable_user_services() {
 	say "enabling user services"
+
+	if [ "$dry_run" -eq 0 ]; then
+		systemctl --user show-environment >/dev/null 2>&1 ||
+			die "systemd user manager is not available; run this as your normal logged-in user, not with sudo."
+	fi
+
 	run systemctl --user daemon-reload
-	run systemctl --user enable xremap.service noctalia.service plasma-polkit-agent.service
+
+	for service in $user_services; do
+		if [ "$dry_run" -eq 0 ]; then
+			systemctl --user cat "$service" >/dev/null 2>&1 ||
+				die "missing user service: $service. Make sure config linking finished first."
+		fi
+
+		run systemctl --user enable "$service"
+	done
+
+	say "xremap and noctalia start with the Hyprland graphical session"
+}
+
+start_user_services_if_session_available() {
+	if [ "$dry_run" -eq 1 ]; then
+		say "dry-run: if WAYLAND_DISPLAY is set, start user services now"
+		# shellcheck disable=SC2086
+		run systemctl --user import-environment $session_env_names
+		for service in $user_services; do
+			run systemctl --user start "$service"
+		done
+		return 0
+	fi
+
+	if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+		say "user services will start with the next Hyprland session"
+		return 0
+	fi
+
+	say "starting user services for current Hyprland session"
+	# shellcheck disable=SC2086
+	run systemctl --user import-environment $session_env_names
+	if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+		# shellcheck disable=SC2086
+		run dbus-update-activation-environment --systemd $session_env_names
+	fi
+
+	for service in $user_services; do
+		run systemctl --user start "$service"
+	done
 }
 
 check_lua_config() {
@@ -227,6 +274,7 @@ install_aur_packages
 link_config
 enable_system_services
 enable_user_services
+start_user_services_if_session_available
 check_lua_config
 
 say "done"

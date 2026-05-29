@@ -88,8 +88,11 @@ NetworkManager.service
 sddm.service
 xremap.service
 noctalia.service
-plasma-polkit-agent.service
+polkit-agent.service
 ```
+
+If `setup-hyprland.sh` is run inside Hyprland, it starts those user services
+right away. If it is run from TTY, they start on the next Hyprland session.
 
 For noninteractive setup:
 

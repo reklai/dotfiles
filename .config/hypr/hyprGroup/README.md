@@ -39,13 +39,35 @@ The menu only describes the Active Container. If focus is outside any group, Hyp
 
 ## Bindings
 
+Defaults live in `lua/hyprgroup/config.lua`, so key changes stay inside this folder:
+
 - `SUPER + mouse_down`: previous window in the active group
 - `SUPER + mouse_up`: next window in the active group
 - `SUPER + backslash`: next window in the active group
 - `SUPER + SHIFT + backslash`: previous window in the active group
 - `SUPER + G`: toggle the HyprGroup menu instantly through a persistent Quickshell daemon
 
+Add this once in `hyprland.lua`:
+
+```lua
+dofile(os.getenv("HOME") .. "/.config/hypr/hyprGroup/lua/hyprgroup.lua").setup()
+```
+
 The split menu opens near the cursor, stays clamped inside the monitor, uses black and gray surfaces with neutral active accents, and closes with `Esc`, the top-right `X`, or a click outside the panel.
+
+## Project Layout
+
+```text
+bin/hyprgroup                  CLI actions and Quickshell daemon launcher
+lua/hyprgroup.lua              Stable Hyprland entry shim
+lua/hyprgroup/init.lua         Setup orchestration
+lua/hyprgroup/config.lua       User-facing keybinds and paths
+lua/hyprgroup/binds.lua        Hyprland bind registration
+lua/hyprgroup/group.lua        Native group and groupbar config
+qs/shell.qml                   Quickshell overlay
+qs/components/ActionButton.qml Reusable QML action control
+tests/                         CLI regression tests
+```
 
 ## Menu Actions
 
@@ -54,12 +76,14 @@ The split menu opens near the cursor, stays clamped inside the monitor, uses bla
 - The Container is tracked by anchor window address, not by workspace
 - Containers are locked after Add so new windows tile beside them instead of auto-entering them
 - Add can still intentionally enter the locked Container
+- Move Container Here, moving the remembered Container to the current active workspace without adding the active window
 - Remove from Container, either moving the selected grouped window out or forgetting a one-window Container
 - Close Window Inside Container, closing the selected Container window with a normal close request
-- Previous and next arrows that cycle focus inside the visible Container
+- Previous and next arrows that cycle focus inside the visible Container without reordering the list
 - Active window details for the selected grouped window, while Container state feedback only reflects the current active Hyprland window
 - Ghostty-inspired vertical, scrollable tab list under the active-window preview with practical labels: Window title, app class, then `Window N`
-- Single click selects a row, double click focuses that grouped window, and drag reorders rows
+- Single click selects a row and updates the Container's active member without staying focused there when you are outside it
+- Double click focuses that grouped window and keeps you there; drag reorders rows
 - Remove and Close target the selected highlighted row
 - If no active or remembered Container exists, the active block says `No Active Window`
 
@@ -70,6 +94,7 @@ bin/hyprgroup --help
 bin/hyprgroup daemon
 bin/hyprgroup menu
 bin/hyprgroup add
+bin/hyprgroup move-here
 bin/hyprgroup close
 bin/hyprgroup remove 0x123456
 bin/hyprgroup reorder 0x123456 1

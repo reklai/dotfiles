@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
+import "components"
 
 ShellRoot {
 	id: root
@@ -20,6 +21,7 @@ ShellRoot {
 	property var snapshotGrouped: []
 	property var snapshotWindowDetails: ({})
 	property string selectedAddress: ""
+	property bool selectActiveAfterRefresh: false
 	property bool tabDragActive: false
 	property bool tabPressActive: false
 	property string pressedTabAddress: ""
@@ -107,6 +109,11 @@ ShellRoot {
 		refreshSnapshotTimer.restart();
 	}
 
+	function runCycle(action) {
+		selectActiveAfterRefresh = true;
+		run(action, "", true);
+	}
+
 	function setPointer(x, y) {
 		const parsedX = Number(x);
 		const parsedY = Number(y);
@@ -157,6 +164,28 @@ ShellRoot {
 		return addresses;
 	}
 
+	function stableGroupedAddresses(nextAddresses) {
+		const stable = [];
+
+		for (let i = 0; i < snapshotGrouped.length; i++) {
+			const address = snapshotGrouped[i];
+
+			if (hasAddress(nextAddresses, address) && !hasAddress(stable, address)) {
+				stable.push(address);
+			}
+		}
+
+		for (let i = 0; i < nextAddresses.length; i++) {
+			const address = nextAddresses[i];
+
+			if (!hasAddress(stable, address)) {
+				stable.push(address);
+			}
+		}
+
+		return stable;
+	}
+
 	function hasAddress(addresses, address) {
 		for (let i = 0; i < addresses.length; i++) {
 			if (addresses[i] === address) {
@@ -176,6 +205,7 @@ ShellRoot {
 		snapshotGrouped = [];
 		snapshotWindowDetails = {};
 		selectedAddress = "";
+		selectActiveAfterRefresh = false;
 	}
 
 	function captureActiveWindowFromHyprland() {
@@ -193,7 +223,7 @@ ShellRoot {
 		snapshotClass = ipc && ipc.class ? ipc.class : "";
 		snapshotSource = "active";
 		snapshotHasContainer = true;
-		snapshotGrouped = grouped;
+		snapshotGrouped = stableGroupedAddresses(grouped);
 		snapshotWindowDetails = {};
 		ensureSelectedWindow();
 	}
@@ -209,7 +239,7 @@ ShellRoot {
 		snapshotClass = snapshot.className || "";
 		snapshotSource = String(snapshot.source || "none");
 		snapshotHasContainer = true;
-		snapshotGrouped = copyGroupedAddresses(snapshot.grouped);
+		snapshotGrouped = stableGroupedAddresses(copyGroupedAddresses(snapshot.grouped));
 		snapshotWindowDetails = snapshotWindowDetailsByAddress(snapshot.windows || []);
 		ensureSelectedWindow();
 	}
@@ -334,6 +364,13 @@ ShellRoot {
 	function ensureSelectedWindow() {
 		if (!snapshotHasContainer || snapshotGrouped.length === 0) {
 			selectedAddress = "";
+			selectActiveAfterRefresh = false;
+			return;
+		}
+
+		if (selectActiveAfterRefresh && hasAddress(snapshotGrouped, snapshotAddress)) {
+			selectedAddress = snapshotAddress;
+			selectActiveAfterRefresh = false;
 			return;
 		}
 
@@ -341,6 +378,7 @@ ShellRoot {
 			return;
 		}
 
+		selectActiveAfterRefresh = false;
 		selectedAddress = hasAddress(snapshotGrouped, snapshotAddress) ? snapshotAddress : snapshotGrouped[0];
 	}
 
@@ -712,7 +750,7 @@ ShellRoot {
 									anchors.fill: parent
 									hoverEnabled: true
 									cursorShape: Qt.PointingHandCursor
-									onClicked: root.run("prev", "", true)
+									onClicked: root.runCycle("prev")
 								}
 							}
 
@@ -738,7 +776,7 @@ ShellRoot {
 									anchors.fill: parent
 									hoverEnabled: true
 									cursorShape: Qt.PointingHandCursor
-									onClicked: root.run("next", "", true)
+									onClicked: root.runCycle("next")
 								}
 							}
 
@@ -798,6 +836,13 @@ ShellRoot {
 								label: "Add to Container"
 								actionEnabled: root.snapshotSource !== "active"
 								onTriggered: root.run("add")
+							}
+
+							ActionButton {
+								width: parent.width
+								label: "Move Container Here"
+								actionEnabled: root.snapshotHasContainer && root.snapshotSource !== "active"
+								onTriggered: root.run("move-here", "", true)
 							}
 
 							ActionButton {
@@ -1001,7 +1046,7 @@ ShellRoot {
 															}
 
 															onReleased: mouse => {
-																if (mouse.button !== Qt.LeftButton && !pointerDown) {
+																if (mouse.button !== Qt.LeftButton || !pointerDown) {
 																	return;
 																}
 
@@ -1011,6 +1056,8 @@ ShellRoot {
 																	root.finishTabDrag(modelData.address);
 																} else {
 																	root.cancelTabDrag();
+																	root.selectWindow(modelData.address);
+																	root.run("select", modelData.address, true);
 																}
 															}
 
