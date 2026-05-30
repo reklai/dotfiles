@@ -12,11 +12,11 @@ aur_helper=""
 
 usage() {
 	cat <<'EOF'
-usage: ./setup-arch.sh [--dry-run] [--skip-aur] [--no-link] [--aur-helper paru|yay]
+usage: ./setup-arch.sh [--dry-run] [--skip-aur] [--no-link] [--aur-helper paru]
 
 Installs official Arch packages, sets the stable Rust toolchain, uses an
-installed AUR helper when available, asks which helper to install when needed,
-installs AUR packages, then links config files.
+installed paru helper when available, installs paru when needed, removes yay
+after paru is available, installs AUR packages, then links config files.
 EOF
 }
 
@@ -38,7 +38,7 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--aur-helper)
 			shift
-			[ "$#" -gt 0 ] || die "--aur-helper requires paru or yay"
+			[ "$#" -gt 0 ] || die "--aur-helper requires paru"
 			aur_helper=$1
 			;;
 		--aur-helper=*)
@@ -57,10 +57,10 @@ while [ "$#" -gt 0 ]; do
 done
 
 case "$aur_helper" in
-	""|paru|yay)
+	""|paru)
 		;;
 	*)
-		die "--aur-helper must be paru or yay"
+		die "--aur-helper must be paru; yay is replaced with paru"
 		;;
 esac
 
@@ -114,42 +114,7 @@ setup_rust_toolchain() {
 
 choose_aur_helper() {
 	[ -z "$aur_helper" ] || return 0
-
-	if command -v paru >/dev/null 2>&1; then
-		aur_helper=paru
-		return 0
-	elif command -v yay >/dev/null 2>&1; then
-		aur_helper=yay
-		return 0
-	fi
-
-	if [ "$dry_run" -eq 1 ]; then
-		aur_helper=paru
-		return 0
-	fi
-
-	if [ ! -t 0 ]; then
-		die "no AUR helper found; rerun with --aur-helper paru or --aur-helper yay"
-		return 0
-	fi
-
-	while :; do
-		printf '%s' "Choose AUR helper: [1] paru [2] yay > "
-		read -r answer
-		case "$answer" in
-			""|1|paru)
-				aur_helper=paru
-				return 0
-				;;
-			2|yay)
-				aur_helper=yay
-				return 0
-				;;
-			*)
-				say "enter 1, 2, paru, or yay"
-				;;
-		esac
-	done
+	aur_helper=paru
 }
 
 install_aur_helper() {
@@ -178,6 +143,38 @@ install_aur_helper() {
 	)
 }
 
+remove_replaced_yay_helper() {
+	command -v yay >/dev/null 2>&1 || return 0
+	if [ "$dry_run" -eq 0 ]; then
+		command -v paru >/dev/null 2>&1 ||
+			die "paru is not available; refusing to remove yay"
+	fi
+
+	yay_path=$(command -v yay 2>/dev/null || true)
+	case "${yay_path##*/}" in
+		yay)
+			;;
+		*)
+			die "refusing to remove unexpected yay path: $yay_path"
+			;;
+	esac
+
+	yay_package=""
+
+	if [ -n "$yay_path" ] && command -v pacman >/dev/null 2>&1; then
+		yay_package=$(pacman -Qoq "$yay_path" 2>/dev/null || true)
+	fi
+
+	if [ -z "$yay_package" ]; then
+		say "removing unowned yay binary: $yay_path"
+		run sudo rm -f "$yay_path"
+		return 0
+	fi
+
+	say "removing replaced AUR helper: $yay_package"
+	run sudo pacman -R --noconfirm "$yay_package"
+}
+
 install_aur_packages() {
 	[ "$skip_aur" -eq 0 ] || {
 		say "skipping AUR packages"
@@ -189,6 +186,7 @@ install_aur_packages() {
 
 	choose_aur_helper
 	install_aur_helper
+	remove_replaced_yay_helper
 
 	say "installing AUR packages with $aur_helper"
 	# shellcheck disable=SC2086

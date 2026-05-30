@@ -36,12 +36,14 @@ Then it sets Rust:
 rustup default stable
 ```
 
-Then it checks for an AUR helper:
+Then it checks for the managed AUR helper:
 
 - `paru`
-- `yay`
 
-If one exists, it uses it. If none exists, it asks which one to install.
+If `paru` exists, it uses it. If `paru` is missing, it installs `paru` from
+AUR. If `yay` is present after `paru` is available, the script removes it. A
+pacman-owned `yay` is removed by package; an unowned `yay` binary is removed
+directly.
 
 AUR packages come from:
 
@@ -107,7 +109,6 @@ For noninteractive setup:
 
 ```sh
 ./setup-arch.sh --aur-helper paru
-./setup-arch.sh --aur-helper yay
 ```
 
 Useful preview:
