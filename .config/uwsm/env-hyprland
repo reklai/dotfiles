@@ -1,0 +1,80 @@
+# Prefer Intel/AMD GPUs for Hyprland while keeping NVIDIA available for outputs.
+preferred_drm_cards=""
+nvidia_drm_cards=""
+other_drm_cards=""
+has_preferred_gpu=0
+has_nvidia_gpu=0
+
+append_drm_card() {
+	if [ -n "$1" ]; then
+		printf '%s\n%s' "$1" "$2"
+	else
+		printf '%s' "$2"
+	fi
+}
+
+for drm_card in $(printf '%s\n' /dev/dri/card[0-9]* | sort -V); do
+	[ -e "$drm_card" ] || continue
+
+	vendor_file="/sys/class/drm/${drm_card##*/}/device/vendor"
+	vendor_id="$(cat "$vendor_file" 2>/dev/null || true)"
+
+	case "$vendor_id" in
+	0x8086 | 0x1002)
+		preferred_drm_cards="$(append_drm_card "$preferred_drm_cards" "$drm_card")"
+		has_preferred_gpu=1
+		;;
+	0x10de)
+		nvidia_drm_cards="$(append_drm_card "$nvidia_drm_cards" "$drm_card")"
+		has_nvidia_gpu=1
+		;;
+	*)
+		other_drm_cards="$(append_drm_card "$other_drm_cards" "$drm_card")"
+		;;
+	esac
+done
+
+ordered_drm_cards=""
+
+if [ -n "$preferred_drm_cards" ]; then
+	for drm_card in $preferred_drm_cards $nvidia_drm_cards $other_drm_cards; do
+		ordered_drm_cards="$(append_drm_card "$ordered_drm_cards" "$drm_card")"
+	done
+else
+	for drm_card in $nvidia_drm_cards $other_drm_cards; do
+		ordered_drm_cards="$(append_drm_card "$ordered_drm_cards" "$drm_card")"
+	done
+fi
+
+if [ -n "$ordered_drm_cards" ]; then
+	AQ_DRM_DEVICES="$(printf '%s\n' "$ordered_drm_cards" | paste -sd: -)"
+	export AQ_DRM_DEVICES
+else
+	unset AQ_DRM_DEVICES
+fi
+
+first_drm_card="$(printf '%s\n' "$ordered_drm_cards" | sed -n '1p')"
+first_vendor_file="/sys/class/drm/${first_drm_card##*/}/device/vendor"
+first_vendor_id="$(cat "$first_vendor_file" 2>/dev/null || true)"
+
+case "$first_vendor_id" in
+0x8086)
+	export LIBVA_DRIVER_NAME=iHD
+	;;
+0x1002)
+	export LIBVA_DRIVER_NAME=radeonsi
+	;;
+*)
+	unset LIBVA_DRIVER_NAME
+	;;
+esac
+
+if [ "$has_preferred_gpu" = 1 ] && [ "$has_nvidia_gpu" = 1 ]; then
+	export __VK_LAYER_NV_optimus=non_NVIDIA_only
+else
+	unset __VK_LAYER_NV_optimus
+fi
+
+unset GBM_BACKEND
+unset __NV_PRIME_RENDER_OFFLOAD
+unset __GLX_VENDOR_LIBRARY_NAME

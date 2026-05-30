@@ -27,11 +27,154 @@ local function path_exists(path)
 	return command_succeeds("test -e " .. path)
 end
 
-local function nvidia_available()
-	return path_exists("/proc/driver/nvidia/version")
-		or path_exists("/dev/nvidiactl")
-		or command_succeeds("nvidia-smi -L")
+local function read_first_line(path)
+	local file = io.open(path, "r")
+	if not file then
+		return nil
+	end
+
+	local line = file:read("*l")
+	file:close()
+
+	if type(line) == "string" then
+		return line:match("^%s*(.-)%s*$")
+	end
+
+	return nil
 end
+
+local function command_lines(command)
+	local handle = io.popen(command)
+	local lines = {}
+
+	if not handle then
+		return lines
+	end
+
+	for line in handle:lines() do
+		if line ~= "" then
+			table.insert(lines, line)
+		end
+	end
+
+	handle:close()
+	return lines
+end
+
+local function resolve_drm_card(path)
+	local handle = io.popen("readlink -f " .. path .. " 2>/dev/null")
+	if not handle then
+		return nil
+	end
+
+	local resolved = handle:read("*l")
+	handle:close()
+
+	if type(resolved) == "string" and resolved:match("^/dev/dri/card%d+$") then
+		return resolved
+	end
+
+	return nil
+end
+
+local function drm_card_number(path)
+	return tonumber(path:match("card(%d+)$")) or math.huge
+end
+
+local function drm_vendor_id(card_path)
+	local card_name = card_path:match("([^/]+)$")
+	if not card_name then
+		return nil
+	end
+
+	return read_first_line("/sys/class/drm/" .. card_name .. "/device/vendor")
+end
+
+local function is_preferred_gpu_vendor(vendor_id)
+	return vendor_id == "0x8086" or vendor_id == "0x1002"
+end
+
+local function is_nvidia_gpu_vendor(vendor_id)
+	return vendor_id == "0x10de"
+end
+
+local function vaapi_driver_for_vendor(vendor_id)
+	if vendor_id == "0x8086" then
+		return "iHD"
+	elseif vendor_id == "0x1002" then
+		return "radeonsi"
+	end
+
+	return nil
+end
+
+local function append_all(target, source)
+	for _, value in ipairs(source) do
+		table.insert(target, value)
+	end
+end
+
+local function list_drm_cards()
+	local cards = {}
+	local seen = {}
+
+	for _, path in ipairs(command_lines("ls -1 /dev/dri/card[0-9]* 2>/dev/null")) do
+		local card_path = resolve_drm_card(path)
+		if card_path and not seen[card_path] then
+			seen[card_path] = true
+			table.insert(cards, {
+				path = card_path,
+				vendor_id = drm_vendor_id(card_path),
+			})
+		end
+	end
+
+	table.sort(cards, function(left, right)
+		return drm_card_number(left.path) < drm_card_number(right.path)
+	end)
+
+	return cards
+end
+
+local function build_drm_device_order()
+	local preferred = {}
+	local nvidia = {}
+	local other = {}
+
+	for _, card in ipairs(list_drm_cards()) do
+		if is_preferred_gpu_vendor(card.vendor_id) then
+			table.insert(preferred, card)
+		elseif is_nvidia_gpu_vendor(card.vendor_id) then
+			table.insert(nvidia, card)
+		else
+			table.insert(other, card)
+		end
+	end
+
+	local ordered = {}
+	if #preferred > 0 then
+		append_all(ordered, preferred)
+		append_all(ordered, nvidia)
+		append_all(ordered, other)
+	else
+		append_all(ordered, nvidia)
+		append_all(ordered, other)
+	end
+
+	return ordered, #preferred > 0, #nvidia > 0
+end
+
+local ordered_drm_cards, has_preferred_gpu, has_nvidia_gpu = build_drm_device_order()
+local drm_device_paths = {}
+
+for _, card in ipairs(ordered_drm_cards) do
+	table.insert(drm_device_paths, card.path)
+end
+
+local default_gpu_vendor_id = ordered_drm_cards[1] and ordered_drm_cards[1].vendor_id or nil
+local hyprland_drm_devices = #drm_device_paths > 0 and table.concat(drm_device_paths, ":") or nil
+local vaapi_driver_name = vaapi_driver_for_vendor(default_gpu_vendor_id)
+local nvidia_optimus_mode = has_preferred_gpu and has_nvidia_gpu and "non_NVIDIA_only" or nil
 
 local function setup_hyprcompanion()
 	if hyprCompanion ~= "enable" or not path_exists(hyprcompanion_path) then
@@ -43,7 +186,6 @@ local function setup_hyprcompanion()
 	})
 end
 
-local has_nvidia = nvidia_available()
 local systemd_session_env_names = {
 	"WAYLAND_DISPLAY",
 	"HYPRLAND_INSTANCE_SIGNATURE",
@@ -51,28 +193,54 @@ local systemd_session_env_names = {
 	"XDG_SESSION_TYPE",
 }
 
-if has_nvidia then
-	for _, name in ipairs({
-		"GBM_BACKEND",
-		"__NV_PRIME_RENDER_OFFLOAD",
-		"__GLX_VENDOR_LIBRARY_NAME",
-		"__VK_LAYER_NV_optimus",
-		"LIBVA_DRIVER_NAME",
-	}) do
-		table.insert(systemd_session_env_names, name)
-	end
+if hyprland_drm_devices then
+	table.insert(systemd_session_env_names, "AQ_DRM_DEVICES")
+end
+
+if vaapi_driver_name then
+	table.insert(systemd_session_env_names, "LIBVA_DRIVER_NAME")
+end
+
+if nvidia_optimus_mode then
+	table.insert(systemd_session_env_names, "__VK_LAYER_NV_optimus")
 end
 
 local systemd_session_env = table.concat(systemd_session_env_names, " ")
 local import_systemd_session_env = "systemctl --user import-environment " .. systemd_session_env
 local update_dbus_session_env = "dbus-update-activation-environment --systemd " .. systemd_session_env
+local stale_nvidia_session_env_names = {
+	"GBM_BACKEND",
+	"__NV_PRIME_RENDER_OFFLOAD",
+	"__GLX_VENDOR_LIBRARY_NAME",
+}
+
+if not vaapi_driver_name then
+	table.insert(stale_nvidia_session_env_names, "LIBVA_DRIVER_NAME")
+end
+
+if not nvidia_optimus_mode then
+	table.insert(stale_nvidia_session_env_names, "__VK_LAYER_NV_optimus")
+end
+
+if not hyprland_drm_devices then
+	table.insert(stale_nvidia_session_env_names, "AQ_DRM_DEVICES")
+end
+
+local stale_nvidia_session_env = table.concat(stale_nvidia_session_env_names, " ")
+local unset_stale_nvidia_session_env = "systemctl --user unset-environment " .. stale_nvidia_session_env
 local restart_xremap = "sh -lc '"
+	.. unset_stale_nvidia_session_env
+	.. "; "
 	.. import_systemd_session_env
 	.. "; systemctl --user reset-failed xremap.service; systemctl --user restart xremap.service'"
 local restart_noctalia = "sh -lc '"
+	.. unset_stale_nvidia_session_env
+	.. "; "
 	.. import_systemd_session_env
 	.. "; systemctl --user reset-failed noctalia.service; systemctl --user restart noctalia.service'"
 local refresh_screen_share_portals = "sh -lc '"
+	.. unset_stale_nvidia_session_env
+	.. "; "
 	.. import_systemd_session_env
 	.. "; "
 	.. update_dbus_session_env
@@ -145,6 +313,7 @@ hl.monitor({
 apply_monitor_setup()
 
 hl.on("hyprland.start", function()
+	hl.exec_cmd(unset_stale_nvidia_session_env)
 	hl.exec_cmd(import_systemd_session_env)
 	hl.exec_cmd(update_dbus_session_env)
 	hl.exec_cmd(refresh_screen_share_portals)
@@ -165,12 +334,16 @@ hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 hl.env("SHELL", "/usr/bin/bash")
 
-if has_nvidia then
-	hl.env("GBM_BACKEND", "nvidia-drm")
-	hl.env("__NV_PRIME_RENDER_OFFLOAD", "1")
-	hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
-	hl.env("__VK_LAYER_NV_optimus", "NVIDIA_only")
-	hl.env("LIBVA_DRIVER_NAME", "nvidia")
+if hyprland_drm_devices then
+	hl.env("AQ_DRM_DEVICES", hyprland_drm_devices)
+end
+
+if vaapi_driver_name then
+	hl.env("LIBVA_DRIVER_NAME", vaapi_driver_name)
+end
+
+if nvidia_optimus_mode then
+	hl.env("__VK_LAYER_NV_optimus", nvidia_optimus_mode)
 end
 
 hl.config({

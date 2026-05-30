@@ -58,7 +58,7 @@ autocmd({ "BufWritePre" }, {
 })
 
 local function apply_theme_overrides()
-	vim.api.nvim_set_hl(0, "Visual", { fg = "#fffafa", bold = true })
+	vim.api.nvim_set_hl(0, "Visual", { fg = "#EBCB8B", bold = true })
 end
 
 autocmd("ColorScheme", {
