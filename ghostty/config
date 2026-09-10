@@ -1,0 +1,21 @@
+command = bash -l -c nu
+font-size = 12
+font-family = JetBrains Mono
+background-opacity = 0.6
+background = black
+mouse-hide-while-typing = true
+
+# Keybinds
+keybind = ctrl+c=copy_to_clipboard
+keybind = ctrl+v=paste_from_clipboard
+# Let Neovim use Ctrl+Shift+C/V (close window / vsplit)
+keybind = ctrl+shift+a=new_tab
+keybind = ctrl+shift+k=close_tab
+keybind = ctrl+1=goto_tab:1
+keybind = ctrl+2=goto_tab:2
+keybind = ctrl+3=goto_tab:3
+keybind = ctrl+4=goto_tab:4
+keybind = ctrl+5=goto_tab:5
+keybind = ctrl+6=goto_tab:6
+keybind = ctrl+shift+q=reload_config
+keybind = ctrl+shift+w=reset

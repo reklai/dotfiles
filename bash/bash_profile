@@ -1,0 +1,7 @@
+#
+# ~/.bash_profile
+#
+
+# Login bash (including Ghostty's `bash -l -c nu`) loads environment
+# from ~/.bashrc, then starts nu with those exported variables.
+[[ -f ~/.bashrc ]] && . ~/.bashrc
