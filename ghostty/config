@@ -91,5 +91,5 @@ keybind = ctrl+shift+enter=unbind
 # Ctrl+Enter (fullscreen) goes to the shell and Neovim instead.
 keybind = ctrl+enter=unbind
 
-# resize overlay: show grid size briefly on resize (default 750ms)
-resize-overlay-duration = 250ms
+# Resize overlay: the "cols x rows" box shown mid-window during a resize.
+resize-overlay = never
