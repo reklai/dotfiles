@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.raise-app" path="/org/gnome/shell/extensions/raise-app/">
+    <key name="firefox" type="as">
+      <default>["&lt;Super&gt;s"]</default>
+      <summary>Focus or launch Firefox</summary>
+    </key>
+    <key name="ghostty" type="as">
+      <default>["&lt;Super&gt;a"]</default>
+      <summary>Focus or launch Ghostty</summary>
+    </key>
+    <key name="nautilus" type="as">
+      <default>["&lt;Super&gt;i"]</default>
+      <summary>Focus or launch Files</summary>
+    </key>
+  </schema>
+</schemalist>

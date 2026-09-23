@@ -28,13 +28,11 @@ return {
 			"cpp",
 			"go",
 			"python",
-			"java",
 			"javascript",
 			"typescript",
 			"tsx",
 			"zig",
 			"rust",
-			-- Spring Boot config files + pom.xml
 			"yaml",
 			"properties",
 			"xml",

@@ -1,0 +1,8 @@
+{
+  "uuid": "raise-app@local",
+  "name": "Raise App",
+  "description": "Super+S raises Firefox, Super+A raises Ghostty, and Super+I raises Files. Focuses the window, or launches the app, and warps the pointer to its center. Pressing the chord again returns to the previous window.",
+  "shell-version": ["50"],
+  "session-modes": ["user"],
+  "settings-schema": "org.gnome.shell.extensions.raise-app"
+}

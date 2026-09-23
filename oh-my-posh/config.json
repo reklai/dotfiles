@@ -3,19 +3,26 @@
   "upgrade": {
     "notice": false
   },
+  "terminal_background": "p:grey",
+  "palette": {
+    "grey": "#454758",
+    "lavender": "#AE8FE7",
+    "white": "#FFFFFF",
+    "text": "#494D64"
+  },
   "blocks": [
     {
       "alignment": "left",
       "segments": [
         {
-          "foreground": "yellow",
+          "foreground": "#FFEE58",
           "style": "plain",
           "template": " \uf0e7 ",
           "type": "root"
         },
         {
-          "background": "black",
-          "foreground": "white",
+          "background": "p:grey",
+          "foreground": "p:white",
           "powerline_symbol": "\ue0b0",
           "properties": {
             "style": "unique"
@@ -25,8 +32,8 @@
           "type": "path"
         },
         {
-          "background": "magenta",
-          "foreground": "black",
+          "background": "p:lavender",
+          "foreground": "p:text",
           "powerline_symbol": "\ue0b0",
           "style": "powerline",
           "template": " {{ .HEAD }} ",
@@ -45,8 +52,8 @@
           "type": "git"
         },
         {
-          "background": "red",
-          "foreground": "white",
+          "background": "#ff8080",
+          "foreground": "#ffffff",
           "powerline_symbol": "\ue0b0",
           "style": "powerline",
           "template": " \ue20f ",
@@ -62,7 +69,7 @@
         {
           "type": "time",
           "style": "plain",
-          "foreground": "magenta",
+          "foreground": "p:lavender",
           "properties": {
             "time_format": "Mon Jan _2 15:04:05 MST"
           }

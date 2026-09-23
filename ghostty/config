@@ -1,21 +1,95 @@
 command = bash -l -c nu
 font-size = 12
-font-family = JetBrains Mono
-background-opacity = 0.6
-background = black
+font-family = "Geist Mono"
+font-style = Medium
+# Icons for Neovim (lualine, diagnostics). Primary face stays Adwaita Mono.
+font-family = FiraCode Nerd Font Mono
+# GrokNight bg_base, the surface Grok paints behind the chat.
+background = 141414
 mouse-hide-while-typing = true
 
-# Keybinds
-keybind = ctrl+c=copy_to_clipboard
-keybind = ctrl+v=paste_from_clipboard
-# Let Neovim use Ctrl+Shift+C/V (close window / vsplit)
-keybind = ctrl+shift+a=new_tab
-keybind = ctrl+shift+k=close_tab
-keybind = ctrl+1=goto_tab:1
-keybind = ctrl+2=goto_tab:2
-keybind = ctrl+3=goto_tab:3
-keybind = ctrl+4=goto_tab:4
-keybind = ctrl+5=goto_tab:5
-keybind = ctrl+6=goto_tab:6
-keybind = ctrl+shift+q=reload_config
-keybind = ctrl+shift+w=reset
+# Mac-style edit keys. performable: the chord is ignored unless Ghostty
+# can actually copy (a selection) or paste, same as Command+C/V on macOS.
+# Ghostty has no cut action, so Super+X copies the selection too.
+keybind = performable:super+x=copy_to_clipboard
+keybind = performable:super+c=copy_to_clipboard
+keybind = performable:super+v=paste_from_clipboard
+# Super -/= toggles zoom (the split fills the window). Ghostty has no
+# separate zoom-in and zoom-out, so either chord toggles it.
+# Super+Shift -/= changes the font size.
+keybind = super+equal=toggle_split_zoom
+keybind = super+minus=toggle_split_zoom
+keybind = super+shift+equal=increase_font_size:1
+keybind = super+shift+plus=increase_font_size:1
+keybind = super+shift+minus=decrease_font_size:1
+keybind = super+shift+zero=reset_font_size
+keybind = super+q=quit
+keybind = super+r=reload_config
+keybind = super+shift+r=reset
+keybind = super+e=clear_screen
+keybind = super+shift+e=new_window
+keybind = super+w=close_surface
+keybind = super+shift+w=close_window
+keybind = super+t=new_tab
+keybind = super+1=goto_tab:1
+keybind = super+2=goto_tab:2
+keybind = super+3=goto_tab:3
+keybind = super+4=goto_tab:4
+keybind = super+d=new_split:right
+keybind = super+shift+d=new_split:down
+keybind = super+h=goto_split:left
+keybind = super+j=goto_split:down
+keybind = super+k=goto_split:up
+keybind = super+l=goto_split:right
+# macOS layout, same as Mitchell Hashimoto's: brackets cycle splits,
+# and Shift+brackets move between tabs.
+keybind = super+left_bracket=goto_split:previous
+keybind = super+right_bracket=goto_split:next
+keybind = super+shift+left_bracket=previous_tab
+keybind = super+shift+right_bracket=next_tab
+
+# Drop Ghostty's Linux defaults that a Super bind above already covers, so
+# those Ctrl/Alt chords reach the shell and Neovim instead. Defaults with
+# no Super equivalent (search, scrollback, command palette, ...) stay.
+# Ctrl+Shift+Q (quit) is swallowed rather than passed through.
+keybind = ctrl+shift+q=ignore
+# Ctrl+Shift+W closes a split in Neovim.
+keybind = ctrl+shift+w=unbind
+keybind = ctrl+insert=unbind
+keybind = ctrl+==unbind
+keybind = ctrl+plus=unbind
+keybind = ctrl+-=unbind
+keybind = ctrl+zero=unbind
+keybind = ctrl+shift+,=unbind
+keybind = ctrl+shift+n=unbind
+keybind = alt+f4=unbind
+keybind = ctrl+shift+t=unbind
+keybind = ctrl+tab=unbind
+keybind = ctrl+shift+tab=unbind
+keybind = ctrl+page_up=unbind
+keybind = ctrl+page_down=unbind
+keybind = ctrl+shift+arrow_left=unbind
+keybind = ctrl+shift+arrow_right=unbind
+keybind = alt+1=unbind
+keybind = alt+2=unbind
+keybind = alt+3=unbind
+keybind = alt+4=unbind
+keybind = alt+digit_1=unbind
+keybind = alt+digit_2=unbind
+keybind = alt+digit_3=unbind
+keybind = alt+digit_4=unbind
+keybind = ctrl+shift+o=unbind
+keybind = ctrl+shift+e=unbind
+keybind = super+ctrl+[=unbind
+keybind = super+ctrl+]=unbind
+# Super+H/J/K/L replaces directional split focus.
+keybind = ctrl+alt+arrow_up=unbind
+keybind = ctrl+alt+arrow_down=unbind
+keybind = ctrl+alt+arrow_left=unbind
+keybind = ctrl+alt+arrow_right=unbind
+keybind = ctrl+shift+enter=unbind
+# Ctrl+Enter (fullscreen) goes to the shell and Neovim instead.
+keybind = ctrl+enter=unbind
+
+# resize overlay: show grid size briefly on resize (default 750ms)
+resize-overlay-duration = 250ms

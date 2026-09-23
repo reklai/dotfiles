@@ -11,11 +11,14 @@ vim.keymap.set({ "n" }, "<C-k>", "<Cmd>wincmd k<CR>", { desc = "Move focus to th
 
 -- Double check for information (future self)
 -- I believe the use-case worth it for rebinding
-vim.keymap.set({ "n" }, "<C-S-c>", "<Cmd>wincmd q<CR>", { desc = "Kill / Quit current window" })
-vim.keymap.set({ "n" }, "<C-S-v>", "<Cmd>vsplit<CR>", { desc = "Split current window" })
+vim.keymap.set({ "n" }, "<C-S-k>", "<Cmd>wincmd q<CR>", { desc = "Quit current window" })
+vim.keymap.set({ "n" }, "<C-S-d>", "<Cmd>vsplit<CR>", { desc = "Split current window" })
+-- Unmapped, Ctrl+Shift+U falls back to Ctrl+U; keep it inert beside the split.
+vim.keymap.set({ "n" }, "<C-S-u>", "<Nop>")
 
--- Alternate file (default <C-^>) on a friendlier key
-vim.keymap.set({ "n", "i" }, "<C-p>", "<C-^>", { desc = "Alternate file" })
+-- Alternate file stays off Ctrl-P so completion can use Ctrl-P / Ctrl-N.
+-- Terminals often send Ctrl-Space
+vim.keymap.set("n", "<C-Space>", "<C-^>", { desc = "Alternate file" })
 
 -- Signature help: <C-q> opens, enters an existing float, and cycles overloads
 -- from inside the float. Keep Neovim's Markdown scaffolding visually concealed.

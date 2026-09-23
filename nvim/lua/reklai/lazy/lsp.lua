@@ -294,8 +294,6 @@ return {
 					end
 				end,
 			},
-			-- XML: schema-driven completion/validation, mainly for pom.xml
-			lemminx = {},
 			eslint = {
 				settings = {
 					workingDirectory = { mode = "auto" },
@@ -373,7 +371,9 @@ return {
 		-- You can add other tools here that you want Mason to install
 		-- for you, so that they are available from within Neovim.
 		local ensure_installed = vim.tbl_filter(function(name)
-			return name ~= "tsc" -- ships inside each project's typescript package
+			-- tsc ships inside each project's typescript package.
+			-- Mason has no clangd build for this ARM machine; Fedora's clangd is used.
+			return name ~= "tsc" and name ~= "clangd"
 		end, vim.tbl_keys(servers or {}))
 		vim.list_extend(ensure_installed, {
 			"zls",
@@ -383,11 +383,6 @@ return {
 			"gofumpt",
 			"golangci-lint",
 			"codelldb",
-			"jdtls",
-			"java-debug-adapter",
-			"java-test",
-			"google-java-format",
-			"vscode-spring-boot-tools",
 		})
 		require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 
