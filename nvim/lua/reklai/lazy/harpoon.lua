@@ -17,7 +17,7 @@ return {
 		vim.keymap.set({ "n", "i" }, "<C-1>", function()
 			harpoon:list():select(1)
 		end)
-		vim.keymap.set({ "n", "i" }, "<C-1>", function()
+		vim.keymap.set({ "n", "i" }, "<C-2>", function()
 			harpoon:list():select(2)
 		end)
 		vim.keymap.set({ "n", "i" }, "<C-3>", function()

@@ -4,15 +4,15 @@ vim.g.maplocalleader = " "
 -- Clear highlights on search when pressing <Esc> in normal mode
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>")
 
-vim.keymap.set({ "n" }, "<C-h>", "<Cmd>wincmd h<CR>", { desc = "Move focus to the left pane" })
-vim.keymap.set({ "n" }, "<C-l>", "<Cmd>wincmd l<CR>", { desc = "Move focus to the right pane" })
-vim.keymap.set({ "n" }, "<C-j>", "<Cmd>wincmd j<CR>", { desc = "Move focus to the bottom pane" })
-vim.keymap.set({ "n" }, "<C-k>", "<Cmd>wincmd k<CR>", { desc = "Move focus to the top pane" })
+vim.keymap.set({ "n","i" }, "<C-h>", "<Cmd>wincmd h<CR>", { desc = "Move focus to the left pane" })
+vim.keymap.set({ "n","i" }, "<C-l>", "<Cmd>wincmd l<CR>", { desc = "Move focus to the right pane" })
+vim.keymap.set({ "n","i" }, "<C-j>", "<Cmd>wincmd j<CR>", { desc = "Move focus to the bottom pane" })
+vim.keymap.set({ "n","i" }, "<C-k>", "<Cmd>wincmd k<CR>", { desc = "Move focus to the top pane" })
 
 -- Double check for information (future self)
 -- I believe the use-case worth it for rebinding
-vim.keymap.set({ "n" }, "<C-S-k>", "<Cmd>wincmd q<CR>", { desc = "Quit current window" })
-vim.keymap.set({ "n" }, "<C-S-d>", "<Cmd>vsplit<CR>", { desc = "Split current window" })
+vim.keymap.set({ "n" }, "<C-q>", "<Cmd>wincmd q<CR>", { desc = "Quit current window" })
+vim.keymap.set({ "n" }, "<C-t>", "<Cmd>vsplit<CR>", { desc = "Split current window" })
 -- Unmapped, Ctrl+Shift+U falls back to Ctrl+U; keep it inert beside the split.
 vim.keymap.set({ "n" }, "<C-S-u>", "<Nop>")
 
@@ -20,7 +20,26 @@ vim.keymap.set({ "n" }, "<C-S-u>", "<Nop>")
 -- Terminals often send Ctrl-Space
 vim.keymap.set("n", "<C-Space>", "<C-^>", { desc = "Alternate file" })
 
--- Signature help: <C-q> opens, enters an existing float, and cycles overloads
+-- Full diagnostic for the cursor line; virtual text truncates in narrow splits.
+-- Pairs with <C-e> hover and <C-s> signature help. <C-g> toggles it: the
+-- second press closes the float instead of entering it.
+local diag_float_win
+vim.keymap.set({ "n", "i" }, "<C-g>", function()
+	if diag_float_win and vim.api.nvim_win_is_valid(diag_float_win) then
+		vim.api.nvim_win_close(diag_float_win, true)
+		diag_float_win = nil
+		return
+	end
+	local _, win = vim.diagnostic.open_float({
+		scope = "line",
+		source = "if_many",
+		border = "rounded",
+		focusable = false,
+	})
+	diag_float_win = win
+end, { desc = "Toggle line diagnostics" })
+
+-- Signature help: <C-s> opens, enters an existing float, and cycles overloads
 -- from inside the float. Keep Neovim's Markdown scaffolding visually concealed.
 local sig_opts = {
 	max_width = 80,
@@ -33,38 +52,14 @@ local sig_opts = {
 local sig_help_method = "textDocument/signatureHelp"
 local sig_cycle_plug = "<Plug>(nvim.lsp.ctrl-s)"
 local sig_cycle_alias = "<Plug>(reklai.signature-cycle)"
-local sig_hint_suffix = " (<C-s> to cycle)"
-local sig_hint_replacement = " (<C-q> to cycle)"
-
-local function rewrite_signature_title(win)
-	local title = vim.api.nvim_win_get_config(win).title
-	local changed = false
-
-	if type(title) == "string" then
-		title, changed = title:gsub(vim.pesc(sig_hint_suffix) .. "$", sig_hint_replacement)
-		changed = changed > 0
-	elseif type(title) == "table" then
-		local chunk = title[#title]
-		if type(chunk) == "table" and type(chunk[1]) == "string" then
-			local count
-			chunk[1], count = chunk[1]:gsub(vim.pesc(sig_hint_suffix) .. "$", sig_hint_replacement)
-			changed = count > 0
-		end
-	end
-
-	if changed then
-		vim.api.nvim_win_set_config(win, { title = title })
-	end
-end
 
 local function decorate_signature_floats(buf)
 	for _, win in ipairs(vim.api.nvim_list_wins()) do
 		local float_buf = vim.api.nvim_win_get_buf(win)
 		if (not buf or float_buf == buf) and vim.w[win][sig_help_method] then
-			rewrite_signature_title(win)
 			vim.wo[win].conceallevel = 2
 			vim.wo[win].concealcursor = "n"
-			vim.keymap.set("n", "<C-q>", sig_cycle_plug, {
+			vim.keymap.set("n", "<C-s>", sig_cycle_plug, {
 				buffer = float_buf,
 				desc = "Cycle LSP signature",
 			})
@@ -107,7 +102,7 @@ local function map_signature_help(buf)
 	end
 	signature_callbacks[buf] = callback
 
-	vim.keymap.set({ "n", "i" }, "<C-q>", callback, {
+	vim.keymap.set({ "n", "i" }, "<C-s>", callback, {
 		buffer = buf,
 		desc = "LSP signature help / focus",
 	})
@@ -137,10 +132,10 @@ local function unmap_signature_help(buf)
 
 	for _, mode in ipairs({ "n", "i" }) do
 		local map = vim.api.nvim_buf_call(buf, function()
-			return vim.fn.maparg("<C-q>", mode, false, true)
+			return vim.fn.maparg("<C-s>", mode, false, true)
 		end)
 		if type(map) == "table" and map.callback == callback then
-			vim.keymap.del(mode, "<C-q>", { buffer = buf })
+			vim.keymap.del(mode, "<C-s>", { buffer = buf })
 		end
 	end
 
