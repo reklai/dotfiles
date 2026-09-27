@@ -1,4 +1,3 @@
-command = bash -l -c nu
 font-size = 12
 font-family = "Geist Mono"
 font-style = Medium

@@ -21,7 +21,6 @@ sudo dnf copr enable -y scottames/ghostty
 sudo dnf install -y \
 	ghostty \
 	neovim \
-	nushell \
 	firefox \
 	nautilus \
 	git \
@@ -87,11 +86,10 @@ curl -fL --retry 3 -o "${HOME}/.local/bin/oh-my-posh" \
 	"https://github.com/JanDeDobbeleer/oh-my-posh/releases/download/v31.3.0/${posh_asset}"
 chmod +x "${HOME}/.local/bin/oh-my-posh"
 
-mkdir -p "${HOME}/.config/nushell" "${HOME}/.config/oh-my-posh"
-cp "${root}/nushell/config.nu" "${root}/nushell/env.nu" "${HOME}/.config/nushell/"
+# Fedora's ~/.bashrc sources every file in ~/.bashrc.d.
+mkdir -p "${HOME}/.bashrc.d" "${HOME}/.config/oh-my-posh"
 cp "${root}/oh-my-posh/config.json" "${HOME}/.config/oh-my-posh/config.json"
-"${HOME}/.local/bin/oh-my-posh" init nu --print -c "${HOME}/.config/oh-my-posh/config.json" \
-	>"${HOME}/.config/oh-my-posh/init.nu"
+cp "${root}/bash/oh-my-posh.sh" "${HOME}/.bashrc.d/oh-my-posh.sh"
 
 npm install -g --prefix "${HOME}/.local" prettier eslint_d
 
@@ -148,7 +146,7 @@ fi
 
 cat <<EOF
 Installed:
-  Ghostty, Nushell, Oh My Posh, Neovim, Firefox, Files
+  Ghostty, Oh My Posh, Neovim, Firefox, Files
   Geist Mono, Adwaita Mono, FiraCode Nerd Font Mono
   git, gcc, make, curl, unzip, ripgrep, fd, tree-sitter, wl-clipboard
   Go, Node, Python, ruff, system clangd, Rust, Zig
@@ -158,14 +156,14 @@ Installed:
 Configs, copied so the shortcuts match this machine:
   ~/.config/nvim
   ~/.config/ghostty
-  ~/.config/nushell
   ~/.config/oh-my-posh
-  Ghostty starts Nushell. The prompt is Mitchell Hashimoto's Oh My Posh theme.
+  ~/.bashrc.d/oh-my-posh.sh
+  Ghostty starts bash. The prompt is Mitchell Hashimoto's Oh My Posh theme.
   Open a new shell to see it.
   Firefox keeps Ctrl, and also gets Ghostty's Super+X/C/V, T, W, Shift+W,
   Shift+E, Q, R, and Shift+R. Super+[ ] is back and forward.
   Super+Shift+[ ] moves between tabs. Not Super+1-4, and not Super+E.
-  Restart Firefox. The Nushell startup banner is off.
+  Restart Firefox.
   Raise App: Super+S Firefox, Super+A Ghostty, Super+I Files.
     Focuses the app, or launches it if needed.
   Ghostty copy/paste is Super+X / Super+C / Super+V, from the Ghostty config.
