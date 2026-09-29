@@ -209,6 +209,12 @@ end
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
 vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv")
 
+-- Indent/dedent the selection and keep it selected for repeated presses
+vim.keymap.set("x", "<Tab>", ">gv", { desc = "Indent selection" })
+vim.keymap.set("x", "<S-Tab>", "<gv", { desc = "Dedent selection" })
+vim.keymap.set("n", "<Tab>", ">>", { desc = "Indent line" })
+vim.keymap.set("n", "<S-Tab>", "<<", { desc = "Dedent line" })
+
 -- Take line below and put it in front of the current line
 vim.keymap.set("n", "J", "mzJ`z")
 
