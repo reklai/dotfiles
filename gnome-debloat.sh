@@ -6,6 +6,14 @@
 set -euo pipefail
 
 sudo dnf remove -y \
+  gnome-software \
+  gnome-software-fedora-langpacks \
+  gnome-calendar \
+  showtime \
+  decibels \
+  gnome-shell-extension-background-logo \
+  ibus-typing-booster \
+  rygel \
   'libreoffice*' \
   mediawriter \
   gnome-tour \
@@ -32,9 +40,28 @@ sudo dnf remove -y \
   gnome-text-editor \
   gnome-classic-session
 
-# Dock: Files + Firefox + Terminal (Calculator and Text Editor are gone).
+# The first group drags out wl-clipboard, which Neovim's clipboard needs.
+sudo dnf install -y wl-clipboard
+
+# Background services that are still installed because something kept requires them.
+systemctl --user mask \
+  evolution-alarm-notify.service \
+  evolution-calendar-factory.service \
+  gnome-software.service \
+  localsearch-3.service \
+  localsearch-control-3.service \
+  localsearch-writeback-3.service \
+  obex.service
+
+mkdir -p "${HOME}/.config/autostart"
+for entry in localsearch-3 org.gnome.Evolution-alarm-notify; do
+  printf '[Desktop Entry]\nHidden=true\nX-GNOME-Autostart-enabled=false\n' \
+    > "${HOME}/.config/autostart/${entry}.desktop"
+done
+
+# Dock: Files + Terminal + Firefox (Calculator and Text Editor are gone).
 gsettings set org.gnome.shell favorite-apps \
-  "['org.mozilla.firefox.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop']"
+  "['org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.mozilla.firefox.desktop']"
 
 gsettings set org.gnome.desktop.search-providers disabled \
   "['org.gnome.Software.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Boxes.desktop', 'org.gnome.Calculator.desktop', 'org.gnome.Characters.desktop', 'org.gnome.clocks.desktop', 'org.gnome.Contacts.desktop', 'org.gnome.Weather.desktop']"
@@ -51,6 +78,8 @@ update-desktop-database "${HOME}/.local/share/applications" 2>/dev/null || true
 
 cat <<'EOF'
 Removed:
+  Software, Calendar, Showtime, Decibels, Rygel, Typing Booster, the
+  Fedora background logo extension,
   LibreOffice, Media Writer, Tour, Maps, Weather, Clocks, Contacts,
   Camera, Scanner, Connections, Boxes (+ KVM/libvirt host stack),
   Characters, Fonts, Help, Disk Usage Analyzer, Parental Controls app,
@@ -58,6 +87,9 @@ Removed:
 
 Kept:
   Files (Nautilus), Settings, Terminal (Ptyxis), Firefox, Loupe, Papers.
+
+Masked for this user: Evolution alarm and calendar services, localsearch,
+  obex, and the GNOME Software service.
 
 Left installed because something you kept still RPM-requires it:
   malcontent            — Settings
