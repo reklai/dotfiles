@@ -35,9 +35,49 @@
 		}
 	}
 
+	// Ctrl+N and Ctrl+P as Down and Up, like macOS. Replaces New Window and Print.
+	const arrows = { n: "ArrowDown", p: "ArrowUp" };
+
+	function pressArrow(name) {
+		// The address bar list is moved directly; it needs no key event.
+		try {
+			if (gURLBar.view.isOpen) {
+				gURLBar.view.selectBy(1, { reverse: name === "ArrowUp" });
+				return;
+			}
+		} catch (error) {
+			console.error(error);
+		}
+		// A key cannot be sent while the real one is still being dispatched.
+		setTimeout(() => sendArrow(name), 0);
+	}
+
+	function sendArrow(name) {
+		const tip = Cc["@mozilla.org/text-input-processor;1"].createInstance(Ci.nsITextInputProcessor);
+		if (!tip.beginInputTransactionForTests(window)) {
+			return;
+		}
+		const press = new KeyboardEvent("", {
+			key: name,
+			code: name,
+			keyCode: name === "ArrowDown" ? KeyboardEvent.DOM_VK_DOWN : KeyboardEvent.DOM_VK_UP,
+		});
+		tip.keydown(press);
+		tip.keyup(press);
+	}
+
 	window.addEventListener(
 		"keydown",
 		(event) => {
+			if (event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+				const arrow = arrows[event.key.toLowerCase()];
+				if (arrow) {
+					event.preventDefault();
+					event.stopPropagation();
+					pressArrow(arrow);
+				}
+				return;
+			}
 			if (!event.metaKey || event.ctrlKey || event.altKey || event.repeat) {
 				return;
 			}

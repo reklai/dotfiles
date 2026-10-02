@@ -201,13 +201,15 @@ Configs, copied so the shortcuts match this machine:
   Firefox keeps Ctrl, and also gets Ghostty's Super+X/C/V, T, W, Shift+W,
   Shift+E, Q, R, and Shift+R. Super+[ ] is back and forward.
   Super+Shift+[ ] moves between tabs. Not Super+1-4, and not Super+E.
+  Ctrl+N and Ctrl+P are Down and Up, replacing New Window and Print.
   Restart Firefox.
   Raise App: Super+S Firefox, Super+A Ghostty, Super+I Files.
     Focuses the app, or launches it if needed.
   Ghostty copy/paste is Super+X / Super+C / Super+V, from the Ghostty config.
   Workspaces: Super+Shift+1 through 4. Tiling: Super+Shift+A left, Super+Shift+S right.
   Super+F opens the Activities overview. Super+Shift+F maximizes.
-  Super+M closes a window. Super+P takes a screenshot. Super+=/- zooms.
+  Super+Q is left to each app: it quits Firefox and Ghostty.
+  Super+P takes a screenshot. Super+=/- zooms.
 
 Remove stock GNOME apps with: bash ${root}/gnome-debloat.sh
 EOF
