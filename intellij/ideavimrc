@@ -1,0 +1,156 @@
+" IdeaVim config for IntelliJ. Its own setup, inspired by the Neovim one; the
+" IDE-side shortcuts live in the "nvim-inspired" keymap.
+" Reload after editing: :source ~/.ideavimrc
+
+let mapleader = " "
+
+" --- Options ---
+set number
+set relativenumber
+set clipboard+=unnamedplus
+set ignorecase
+set smartcase
+set hlsearch
+set incsearch
+set scrolloff=10
+set timeoutlen=300
+set noshowmode
+set ideajoin
+
+" --- Ctrl keys Vim owns instead of the IDE ---
+sethandler <C-h> a:vim
+sethandler <C-j> a:vim
+sethandler <C-k> a:vim
+sethandler <C-l> a:vim
+sethandler <C-q> a:vim
+sethandler <C-t> a:vim
+sethandler <C-s> a:vim
+sethandler <C-e> a:vim
+sethandler <C-d> a:vim
+sethandler <C-u> a:vim
+" Ctrl-Space: alternate file in normal mode, completion in insert mode
+sethandler <C-Space> n:vim i:ide
+
+" --- Ctrl keys the IDE keymap owns ---
+" Ctrl-G terminal, Ctrl-B build, Ctrl-M new file, Ctrl-1..6 go to tab,
+" Ctrl-[ / Ctrl-] previous / next editor split (so Ctrl-[ is not <Esc> here),
+" Ctrl-Shift-[ / ] previous / next tab.
+sethandler <C-g> a:ide
+sethandler <C-b> a:ide
+sethandler <C-m> a:ide
+sethandler <C-1> a:ide
+sethandler <C-2> a:ide
+sethandler <C-3> a:ide
+sethandler <C-4> a:ide
+sethandler <C-5> a:ide
+sethandler <C-6> a:ide
+sethandler <C-[> a:ide
+sethandler <C-]> a:ide
+sethandler <C-S-[> a:ide
+sethandler <C-S-]> a:ide
+
+" --- Windows, popups and editing ---
+" Esc clears search highlight, then passes Escape on to the IDE so it also
+" closes hints and popups (parameter info, documentation).
+nmap <Esc> :nohlsearch<CR>:let g:reklai_sig = ''<CR><Action>(EditorEscape)
+
+nnoremap <C-h> <C-w>h
+nnoremap <C-l> <C-w>l
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+inoremap <C-h> <C-o><C-w>h
+inoremap <C-l> <C-o><C-w>l
+inoremap <C-j> <C-o><C-w>j
+inoremap <C-k> <C-o><C-w>k
+
+nnoremap <C-q> :q<CR>
+nnoremap <C-t> :vsplit<CR>
+nnoremap <C-S-u> <Nop>
+
+nnoremap <C-Space> <C-^>
+
+" Signature help / hover
+" Ctrl-S toggles parameter info: a second press at the same cursor position
+" closes it; after the cursor has moved it shows the hint again.
+let g:reklai_sig = ''
+function! ReklaiToggleSignature()
+  let l:pos = line('.') . ':' . col('.')
+  if g:reklai_sig == l:pos
+    let g:reklai_sig = ''
+    action EditorEscape
+  else
+    let g:reklai_sig = l:pos
+    action ParameterInfo
+  endif
+endfunction
+nnoremap <C-s> :call ReklaiToggleSignature()<CR>
+inoremap <C-s> <C-o>:call ReklaiToggleSignature()<CR>
+" Ctrl-E shows documentation; Esc closes it.
+nmap <C-e> <Action>(QuickJavaDoc)
+imap <C-e> <Action>(QuickJavaDoc)
+
+" Move selection up/down
+vnoremap J :m '>+1<CR>gv=gv
+vnoremap K :m '<-2<CR>gv=gv
+
+" Indent/dedent, keeping the selection
+xnoremap <Tab> >gv
+xnoremap <S-Tab> <gv
+nnoremap <Tab> >>
+nnoremap <S-Tab> <<
+
+nnoremap J mzJ`z
+nnoremap <C-d> <C-d>zz
+nnoremap <C-u> <C-u>zz
+
+nnoremap Q <Nop>
+nnoremap K <Nop>
+
+xnoremap p P
+
+" --- Search (Ctrl-F prefix) ---
+" Ctrl-N / Ctrl-P stay free for completion next / previous.
+sethandler <C-f> n-v:vim i:ide
+nmap <C-f>f <Action>(GotoFile)
+nmap <C-f>g <Action>(TextSearchAction)
+nmap <C-f>d <Action>(ActivateProblemsViewToolWindow)
+nmap <C-f>p <Action>(RecentFiles)
+nmap <C-f>b <Action>(Find)
+nmap <C-f>l <Action>(FindInPath)
+nnoremap <C-f>n :e ~/.ideavimrc<CR>
+
+" --- Go to and refactor ---
+nmap grn <Action>(RenameElement)
+nmap gra <Action>(ShowIntentionActions)
+xmap gra <Action>(ShowIntentionActions)
+nmap grr <Action>(ShowUsages)
+nmap gri <Action>(GotoImplementation)
+nmap grd :vsplit<CR><Action>(GotoDeclaration)
+nmap gd :vsplit<CR><Action>(GotoDeclaration)
+nmap grc :vsplit<CR><Action>(GotoDeclaration)
+nmap grs <Action>(FileStructurePopup)
+nmap grw <Action>(GotoSymbol)
+nmap grt :vsplit<CR><Action>(GotoTypeDeclaration)
+
+" --- Formatting ---
+nmap <leader>f <Action>(ReformatCode)
+xmap <leader>f <Action>(ReformatCode)
+
+" --- Completion popup ---
+" Insert mode: the IDE keymap binds Ctrl-N/Ctrl-P to next/previous item and
+" Ctrl-Y to accept. Normal/visual mode keep Vim's own Ctrl-N/Ctrl-P/Ctrl-Y.
+sethandler <C-n> n-v:vim i:ide
+sethandler <C-p> n-v:vim i:ide
+sethandler <C-y> n-v:vim i:ide
+
+" --- Diagnostics (IDE keymap) ---
+" Ctrl-Shift-J / Ctrl-Shift-K: next / previous error in file.
+" Ctrl-Shift-N / Ctrl-Shift-P: next / previous item in the open result list.
+sethandler <C-S-j> a:ide
+sethandler <C-S-k> a:ide
+sethandler <C-S-n> a:ide
+sethandler <C-S-p> a:ide
+
+" --- Ctrl-O: Open File or Project (IDE keymap) ---
+" Vim's jump-back on Ctrl-O is given up for this; Ctrl-I (jump forward) stays.
+sethandler <C-o> a:ide

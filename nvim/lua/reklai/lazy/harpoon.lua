@@ -23,7 +23,7 @@ return {
 		vim.keymap.set({ "n", "i" }, "<C-3>", function()
 			harpoon:list():select(3)
 		end)
-		vim.keymap.set({ "n", "i" }, "<C-4", function()
+		vim.keymap.set({ "n", "i" }, "<C-4>", function()
 			harpoon:list():select(4)
 		end)
 	end,

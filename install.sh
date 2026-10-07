@@ -89,6 +89,20 @@ rm -rf "${HOME}/.config/nvim" "${HOME}/.config/ghostty"
 cp -a "${root}/nvim" "${HOME}/.config/nvim"
 cp -a "${root}/ghostty" "${HOME}/.config/ghostty"
 
+# IntelliJ: the IdeaVim maps and the IDE keymap. The config folder is named
+# after the IDE version and only exists once IntelliJ has run.
+cp "${root}/intellij/ideavimrc" "${HOME}/.ideavimrc"
+idea_keymap_copied=0
+for idea_config in "${HOME}/.var/app/com.jetbrains.IntelliJ-IDEA-Community/config/JetBrains"/IdeaIC*/; do
+	[[ -d "${idea_config}" ]] || continue
+	mkdir -p "${idea_config}keymaps"
+	cp "${root}/intellij/nvim-inspired.xml" "${idea_config}keymaps/nvim-inspired.xml"
+	idea_keymap_copied=1
+done
+if [[ "${idea_keymap_copied}" -eq 0 ]]; then
+	echo "IntelliJ has not created its config folder yet. Open it once, then rerun this script." >&2
+fi
+
 mkdir -p "${HOME}/.config/btop" "${HOME}/.config/gtk-3.0" "${HOME}/.config/gtk-4.0"
 cp "${root}/btop/btop.conf" "${HOME}/.config/btop/btop.conf"
 cp "${root}/gtk/settings.ini" "${HOME}/.config/gtk-3.0/settings.ini"
@@ -186,6 +200,8 @@ Installed:
 Configs, copied so the shortcuts match this machine:
   ~/.config/nvim
   ~/.config/ghostty
+  ~/.ideavimrc and the IntelliJ keymap "nvim-inspired"
+    Install the IdeaVim plugin and pick the keymap in Settings > Keymap.
   ~/.config/oh-my-posh
   ~/.bashrc.d/oh-my-posh.sh
   ~/.config/environment.d/99-gnome-fast.conf

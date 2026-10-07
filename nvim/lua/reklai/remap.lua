@@ -20,6 +20,99 @@ vim.keymap.set({ "n" }, "<C-S-u>", "<Nop>")
 -- Terminals often send Ctrl-Space
 vim.keymap.set("n", "<C-Space>", "<C-^>", { desc = "Alternate file" })
 
+-- Buffer diagnostics on Ctrl+Shift+J/K (next/previous), replacing the default
+-- ]d / [d. Ctrl+Shift+N/P walk every buffer's diagnostics (below).
+vim.keymap.set("n", "<C-S-k>", function()
+	vim.diagnostic.jump({ count = -vim.v.count1 })
+end, { desc = "Previous diagnostic in buffer" })
+vim.keymap.set("n", "<C-S-j>", function()
+	vim.diagnostic.jump({ count = vim.v.count1 })
+end, { desc = "Next diagnostic in buffer" })
+pcall(vim.keymap.del, "n", "[d")
+pcall(vim.keymap.del, "n", "]d")
+
+-- Global diagnostics on Ctrl+Shift+N/P (next/previous): one stop per diagnostic
+-- line across all buffers, ordered by severity, file, then line. Native rather
+-- than Trouble's next/prev, which opens its panel and throws "Invalid cursor
+-- line" when a stale diagnostic points past the end of the file.
+local function diagnostic_stops()
+	local stops, by_line = {}, {}
+	for _, diag in ipairs(vim.diagnostic.get(nil)) do
+		if vim.api.nvim_buf_is_valid(diag.bufnr) then
+			local key = diag.bufnr .. ":" .. diag.lnum
+			local stop = by_line[key]
+			if not stop then
+				stop = {
+					buf = diag.bufnr,
+					name = vim.api.nvim_buf_get_name(diag.bufnr),
+					lnum = diag.lnum,
+					col = diag.col,
+					severity = diag.severity,
+				}
+				by_line[key] = stop
+				table.insert(stops, stop)
+			else
+				stop.severity = math.min(stop.severity, diag.severity)
+				stop.col = math.min(stop.col, diag.col)
+			end
+		end
+	end
+	table.sort(stops, function(a, b)
+		if a.severity ~= b.severity then
+			return a.severity < b.severity
+		end
+		if a.name ~= b.name then
+			return a.name < b.name
+		end
+		return a.lnum < b.lnum
+	end)
+	return stops
+end
+
+local function jump_global_diagnostic(step)
+	local stops = diagnostic_stops()
+	if #stops == 0 then
+		vim.notify("No diagnostics", vim.log.levels.INFO)
+		return
+	end
+
+	-- Stale stops are compared at the line they clamp to, so stepping moves on.
+	local buf = vim.api.nvim_get_current_buf()
+	local row = vim.api.nvim_win_get_cursor(0)[1]
+	local last = vim.api.nvim_buf_line_count(buf)
+	local current
+	for i, stop in ipairs(stops) do
+		if stop.buf == buf and math.min(stop.lnum + 1, last) == row then
+			current = i
+			break
+		end
+	end
+
+	local index = step > 0 and 1 or #stops
+	if current then
+		index = (current - 1 + step) % #stops + 1
+	end
+	local target = stops[index]
+
+	if not vim.api.nvim_buf_is_loaded(target.buf) then
+		pcall(vim.fn.bufload, target.buf)
+	end
+	vim.bo[target.buf].buflisted = true
+	vim.cmd("normal! m'")
+	vim.api.nvim_win_set_buf(0, target.buf)
+	local line = math.min(target.lnum + 1, vim.api.nvim_buf_line_count(target.buf))
+	local text = vim.api.nvim_buf_get_lines(target.buf, line - 1, line, false)[1] or ""
+	vim.api.nvim_win_set_cursor(0, { line, math.min(target.col, #text) })
+	vim.cmd("normal! zzzv")
+end
+
+vim.keymap.set("n", "<C-S-n>", function()
+	jump_global_diagnostic(1)
+end, { desc = "Next global diagnostic" })
+vim.keymap.set("n", "<C-S-p>", function()
+	jump_global_diagnostic(-1)
+end, { desc = "Previous global diagnostic" })
+
 -- Full diagnostic for the cursor line; virtual text truncates in narrow splits.
 -- Pairs with <C-e> hover and <C-s> signature help. <C-g> toggles it: the
 -- second press closes the float instead of entering it.
