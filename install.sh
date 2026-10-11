@@ -179,6 +179,15 @@ if [[ "$(systemd-detect-virt 2>/dev/null || true)" == vmware ]]; then
 	if ! systemctl --user enable --now vmware-share.service; then
 		echo "vmware-share.service did not start. Share a folder named reklai from Fusion, then rerun this script." >&2
 	fi
+
+	# The clipboard agent segfaults now and then. Run it under systemd so it
+	# comes back, and hide the stock autostart entry that would start a second one.
+	cp "${root}/systemd/vmware-user.service" "${HOME}/.config/systemd/user/vmware-user.service"
+	mkdir -p "${HOME}/.config/autostart"
+	printf '[Desktop Entry]\nType=Application\nName=VMware User Agent\nHidden=true\n' > "${HOME}/.config/autostart/vmware-user.desktop"
+	systemctl --user daemon-reload
+	systemctl --user enable vmware-user.service
+	systemctl --user restart vmware-user.service
 fi
 
 nvim --headless "+Lazy! sync" +qa
@@ -212,6 +221,7 @@ Configs, copied so the shortcuts match this machine:
   GNOME settings from gnome/dconf.ini: dark, slate accent, no animations,
     no hot corners, one workspace, Super alone does nothing.
   ~/vmware-share mounts at login, on VMware guests only.
+  vmware-user.service keeps host copy and paste alive, on VMware guests only.
   Ghostty starts bash. The prompt is Mitchell Hashimoto's Oh My Posh theme.
   Open a new shell to see it.
   Firefox keeps Ctrl, and also gets Ghostty's Super+X/C/V, T, W, Shift+W,
