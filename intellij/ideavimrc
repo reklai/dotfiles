@@ -32,9 +32,7 @@ sethandler <C-u> a:vim
 sethandler <C-Space> n:vim i:ide
 
 " --- Ctrl keys the IDE keymap owns ---
-" Ctrl-G terminal, Ctrl-B build, Ctrl-M new file, Ctrl-1..6 go to tab,
-" Ctrl-[ / Ctrl-] previous / next editor split (so Ctrl-[ is not <Esc> here),
-" Ctrl-Shift-[ / ] previous / next tab.
+" Ctrl-G terminal, Ctrl-B build, Ctrl-M new file, Ctrl-1..6 go to tab.
 sethandler <C-g> a:ide
 sethandler <C-b> a:ide
 sethandler <C-m> a:ide
@@ -44,10 +42,6 @@ sethandler <C-3> a:ide
 sethandler <C-4> a:ide
 sethandler <C-5> a:ide
 sethandler <C-6> a:ide
-sethandler <C-[> a:ide
-sethandler <C-]> a:ide
-sethandler <C-S-[> a:ide
-sethandler <C-S-]> a:ide
 
 " --- Windows, popups and editing ---
 " Esc clears search highlight, then passes Escape on to the IDE so it also
@@ -68,6 +62,18 @@ nnoremap <C-t> :vsplit<CR>
 nnoremap <C-S-u> <Nop>
 
 nnoremap <C-Space> <C-^>
+
+" Ctrl-Shift-H / Ctrl-Shift-L previous / next open file, like nvim buffers:
+" cycles every open file in the project, whichever split it lives in, and shows
+" it in the current split. The IDE keymap has the same keys for tool window tabs.
+sethandler <C-S-h> a:vim
+sethandler <C-S-l> a:vim
+nnoremap <C-S-h> :bprevious<CR>
+nnoremap <C-S-l> :bnext<CR>
+xnoremap <C-S-h> :<C-u>bprevious<CR>
+xnoremap <C-S-l> :<C-u>bnext<CR>
+inoremap <C-S-h> <C-o>:bprevious<CR>
+inoremap <C-S-l> <C-o>:bnext<CR>
 
 " Signature help / hover
 " Ctrl-S toggles parameter info: a second press at the same cursor position
@@ -120,17 +126,15 @@ nmap <C-f>l <Action>(FindInPath)
 nnoremap <C-f>n :e ~/.ideavimrc<CR>
 
 " --- Go to and refactor ---
-nmap grn <Action>(RenameElement)
-nmap gra <Action>(ShowIntentionActions)
-xmap gra <Action>(ShowIntentionActions)
-nmap grr <Action>(ShowUsages)
-nmap gri <Action>(GotoImplementation)
-nmap grd <Action>(GotoDeclaration)
 nmap gd <Action>(GotoDeclaration)
-nmap grc <Action>(GotoDeclaration)
-nmap grs <Action>(FileStructurePopup)
-nmap grw <Action>(GotoSymbol)
-nmap grt <Action>(GotoTypeDeclaration)
+nmap gi <Action>(GotoImplementation)
+nmap gc <Action>(ShowUsages)
+nmap gt <Action>(GotoTypeDeclaration)
+nmap gn <Action>(RenameElement)
+nmap ga <Action>(ShowIntentionActions)
+xmap ga <Action>(ShowIntentionActions)
+nmap gs <Action>(FileStructurePopup)
+nmap gw <Action>(GotoSymbol)
 
 " --- Formatting ---
 nmap <leader>f <Action>(ReformatCode)

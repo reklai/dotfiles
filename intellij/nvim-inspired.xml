@@ -1,26 +1,20 @@
 <keymap version="1" name="nvim-inspired" parent="Default for GNOME">
   <action id="ActivateProblemsViewToolWindow">
-    <keyboard-shortcut first-keystroke="alt 6" />
     <keyboard-shortcut first-keystroke="shift ctrl w" />
   </action>
   <action id="ActivateProjectToolWindow">
-    <keyboard-shortcut first-keystroke="alt 1" />
     <keyboard-shortcut first-keystroke="shift ctrl q" />
   </action>
   <action id="ActivateRunToolWindow">
-    <keyboard-shortcut first-keystroke="alt 4" />
     <keyboard-shortcut first-keystroke="shift ctrl e" />
   </action>
   <action id="ActivateTerminalToolWindow">
-    <keyboard-shortcut first-keystroke="alt f12" />
     <keyboard-shortcut first-keystroke="ctrl g" />
   </action>
   <action id="ChangesView.ShelveSilently" />
   <action id="ChangesView.ShowCommitOptions" />
   <action id="CheckinProject" />
-  <action id="CloseAllEditorsButActive">
-    <keyboard-shortcut first-keystroke="shift ctrl h" />
-  </action>
+  <action id="CloseAllEditorsButActive" />
   <action id="CloseContent">
     <keyboard-shortcut first-keystroke="ctrl f4" />
   </action>
@@ -38,14 +32,12 @@
     <keyboard-shortcut first-keystroke="ctrl subtract" />
   </action>
   <action id="CompileDirty">
-    <keyboard-shortcut first-keystroke="ctrl f9" />
     <keyboard-shortcut first-keystroke="ctrl b" />
   </action>
   <action id="CompileProject">
     <keyboard-shortcut first-keystroke="shift ctrl b" />
   </action>
   <action id="Debug">
-    <keyboard-shortcut first-keystroke="shift f9" />
     <keyboard-shortcut first-keystroke="shift ctrl d" />
   </action>
   <action id="EditorChooseLookupItem">
@@ -134,11 +126,9 @@
   <action id="GotoFile" />
   <action id="GotoLine" />
   <action id="GotoNextError">
-    <keyboard-shortcut first-keystroke="f2" />
     <keyboard-shortcut first-keystroke="shift ctrl j" />
   </action>
   <action id="GotoPreviousError">
-    <keyboard-shortcut first-keystroke="shift f2" />
     <keyboard-shortcut first-keystroke="shift ctrl k" />
   </action>
   <action id="GotoSuperMethod" />
@@ -151,8 +141,6 @@
   <action id="InsertLiveTemplate" />
   <action id="Markdown.Styling.CreateLink" />
   <action id="MaximizeToolWindow">
-    <keyboard-shortcut first-keystroke="shift ctrl quote" />
-    <keyboard-shortcut first-keystroke="ctrl minus" />
     <keyboard-shortcut first-keystroke="ctrl equals" />
   </action>
   <action id="MethodHierarchy" />
@@ -163,15 +151,11 @@
     <keyboard-shortcut first-keystroke="ctrl m" />
   </action>
   <action id="NextOccurence">
-    <keyboard-shortcut first-keystroke="shift alt down" />
     <keyboard-shortcut first-keystroke="shift ctrl n" />
   </action>
-  <action id="NextSplitter">
-    <keyboard-shortcut first-keystroke="ctrl close_bracket" />
-  </action>
+  <action id="NextSplitter" />
   <action id="NextTab">
-    <keyboard-shortcut first-keystroke="alt right" />
-    <keyboard-shortcut first-keystroke="shift ctrl close_bracket" />
+    <keyboard-shortcut first-keystroke="shift ctrl l" />
   </action>
   <action id="OpenFile">
     <keyboard-shortcut first-keystroke="ctrl o" />
@@ -180,29 +164,23 @@
   <action id="ParameterInfo">
     <keyboard-shortcut first-keystroke="ctrl s" />
   </action>
-  <action id="PrevSplitter">
-    <keyboard-shortcut first-keystroke="ctrl open_bracket" />
-  </action>
+  <action id="PrevSplitter" />
   <action id="PreviousOccurence">
-    <keyboard-shortcut first-keystroke="shift alt up" />
     <keyboard-shortcut first-keystroke="shift ctrl p" />
   </action>
   <action id="PreviousTab">
-    <keyboard-shortcut first-keystroke="alt left" />
-    <keyboard-shortcut first-keystroke="shift ctrl open_bracket" />
+    <keyboard-shortcut first-keystroke="shift ctrl h" />
   </action>
   <action id="QuickJavaDoc" />
   <action id="RecentFiles" />
   <action id="RecentLocations" />
   <action id="ReplaceInPath" />
   <action id="Run">
-    <keyboard-shortcut first-keystroke="shift f10" />
     <keyboard-shortcut first-keystroke="shift ctrl r" />
   </action>
   <action id="SaveAll" />
   <action id="ServiceView.ShowServices" />
   <action id="ShowErrorDescription">
-    <keyboard-shortcut first-keystroke="ctrl f1" />
     <keyboard-shortcut first-keystroke="shift ctrl y" />
   </action>
   <action id="Terminal.NewTab">
