@@ -58,16 +58,6 @@ return {
 					vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = "LSP: " .. desc })
 				end
 
-				-- Open every goto in a vertical split: direct jumps and <CR> in the picker.
-				local split_opts = {
-					jump_type = "vsplit",
-					attach_mappings = function(_, tmap)
-						local actions = require("telescope.actions")
-						tmap({ "i", "n" }, "<CR>", actions.select_vertical)
-						return true
-					end,
-				}
-
 				-- Hover docs for the symbol under the cursor; press again to enter the float.
 				--  <C-s> (signature help) lives in remap.lua.
 				map("<C-e>", vim.lsp.buf.hover, "Hover documentation", { "n", "i" })
@@ -81,35 +71,33 @@ return {
 				map("gra", vim.lsp.buf.code_action, "[G]oto Code [A]ction", { "n", "x" })
 
 				-- Find references for the word under your cursor.
-				map("grr", function() require("telescope.builtin").lsp_references(split_opts) end, "[G]oto [R]eferences")
+				map("grr", function() require("telescope.builtin").lsp_references() end, "[G]oto [R]eferences")
 
 				-- Jump to the implementation of the word under your cursor.
 				--  Useful when your language has ways of declaring types without an actual implementation.
-				map("gri", function() require("telescope.builtin").lsp_implementations(split_opts) end, "[G]oto [I]mplementation")
+				map("gri", function() require("telescope.builtin").lsp_implementations() end, "[G]oto [I]mplementation")
 
 				-- Jump to the definition of the word under your cursor.
 				--  This is where a variable was first declared, or where a function is defined, etc.
-				--  It opens in a vsplit; <C-q> closes it.
-				map("grd", function() require("telescope.builtin").lsp_definitions(split_opts) end, "[G]oto [D]efinition")
+				map("grd", function() require("telescope.builtin").lsp_definitions() end, "[G]oto [D]efinition")
 
-				-- WARN: This is not Goto Definition, this is Goto Declaration.
-				--  For example, in C this would take you to the header.
-				map("gd", function() require("telescope.builtin").lsp_definitions(split_opts) end, "[G]oto [D]efinition")
+				map("gd", function() require("telescope.builtin").lsp_definitions() end, "[G]oto [D]efinition")
 
-				map("grc", function() vim.cmd("vsplit") vim.lsp.buf.declaration() end, "[G]oto [D]eclaration")
+				-- Go to declaration (for example, a C header).
+				map("grc", vim.lsp.buf.declaration, "[G]oto [D]eclaration")
 
 				-- Fuzzy find all the symbols in your current document.
 				--  Symbols are things like variables, functions, types, etc.
-				map("grs", function() require("telescope.builtin").lsp_document_symbols(split_opts) end, "Open Document Symbols")
+				map("grs", function() require("telescope.builtin").lsp_document_symbols() end, "Open Document Symbols")
 
 				-- Fuzzy find all the symbols in your current workspace.
 				--  Similar to document symbols, except searches over your entire project.
-				map("grw", function() require("telescope.builtin").lsp_dynamic_workspace_symbols(split_opts) end, "Open Workspace Symbols")
+				map("grw", function() require("telescope.builtin").lsp_dynamic_workspace_symbols() end, "Open Workspace Symbols")
 
 				-- Jump to the type of the word under your cursor.
 				--  Useful when you're not sure what type a variable is and you want to see
 				--  the definition of its *type*, not where it was *defined*.
-				map("grt", function() require("telescope.builtin").lsp_type_definitions(split_opts) end, "[G]oto [T]ype Definition")
+				map("grt", function() require("telescope.builtin").lsp_type_definitions() end, "[G]oto [T]ype Definition")
 
 				-- This function resolves a difference between neovim nightly (version 0.11) and stable (version 0.10)
 				---@param client vim.lsp.Client

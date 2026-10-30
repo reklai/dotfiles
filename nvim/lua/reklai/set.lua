@@ -98,4 +98,4 @@ vim.opt.colorcolumn = "80" -- Highlight column 80 to indicate line length limit 
 -- Bottom statusline is lualine (see lazy/lualine.lua): mode, filename, encoding,
 -- fileformat, filetype, progress, location. That is the bar from the screenshot.
 vim.opt.laststatus = 2
-vim.opt.winbar = ""
+vim.opt.winbar = " %f"
